@@ -1,9 +1,7 @@
+include ../include.mk
 .PHONY: clean
 
-LIBDIR=~/lib
-
-CFLAGS=-c -Wall -Wextra -fPIC -DPIC -g -O0
-LDFLAGS+=-lc -ldl
+CFLAGS += -DPIC -g -O0
 LIB=$(LIBDIR)/xwrap.so
 
 ifdef DEBUG
