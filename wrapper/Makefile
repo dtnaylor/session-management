@@ -12,6 +12,7 @@ all: $(LIB)
 
 $(LIB): xwrap.c
 	$(CC) $(CFLAGS) $<
+	mkdir -p $(LIBDIR)
 	$(LD) -shared -o $@ xwrap.o $(LDFLAGS) 
 
 clean:

@@ -21,6 +21,7 @@ all: $(LIB)
 	$(CC) $(CPPFLAGS) $<  -o $@
 
 $(LIB): $(OBJS) 
+	mkdir -p $(LIBDIR)
 	$(LD) -shared -o $@ $(OBJS) $(LDFLAGS)
 
 clean:
