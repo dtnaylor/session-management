@@ -20,6 +20,7 @@
 bool Preferences::getCompress(Party party, const std::string &app) {
 	// Simulate preferences for compression
 	// (for now we're ignoring the app name...)
+	(void)app;
 
 	switch(party) {
 		case kUser:
