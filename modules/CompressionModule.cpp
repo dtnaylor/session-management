@@ -28,11 +28,22 @@
 
 #define CHUNK 16384
 		
-void CompressionModule::initialize(Preferences &prefs, ContextualInfo &info) {
+void CompressionModule::initialize(Preferences &prefs, ContextualInfo &info, bool initiator) {
 	// do nothing
+	(void)prefs;
+	(void)info;
+	(void)initiator;
 }
 
-//virtual void CompressionModule::handshake( ... ); // TODO
+bool CompressionModule::handshake_done() {
+	// No handshake
+	return true;
+}
+
+bool CompressionModule::ready() {
+	// TODO
+	return false;
+}
 
 DataPathState CompressionModule::get_required_data_path_state() {
 	return kAny;
@@ -42,9 +53,21 @@ DataPathState CompressionModule::get_resulting_data_path_state() {
 	return kObscured;
 }
 
-//void CompressionModule::data_in( ... );  // TODO
-//void CompressionModule::data_out( ... ); // TODO
+int CompressionModule::data_in(void *buf, size_t *datalen, size_t *buflen) {
+	// TODO
+	(void)buf;
+	(void)datalen;
+	(void)buflen;
+	return -1;
+}
 
+int CompressionModule::data_out(void *buf, size_t *datalen, size_t *buflen) {
+	// TODO
+	(void)buf;
+	(void)datalen;
+	(void)buflen;
+	return -1;
+}
 
 
 // returns -1 on error, num bytes of compressed data otherwise

@@ -21,12 +21,13 @@
 
 class CompressionModule : public DataPathModule {
 	public:
-		virtual void initialize(Preferences &prefs, ContextualInfo &info);
-		//virtual void handshake( ... ); // TODO
+		virtual void initialize(Preferences &prefs, ContextualInfo &info, bool initiator);
+		virtual bool handshake_done();
+		virtual bool ready();
 		virtual DataPathState get_required_data_path_state();
 		virtual DataPathState get_resulting_data_path_state();
-		//virtual void data_in( ... );  // TODO
-		//virtual void data_out( ... ); // TODO
+		virtual int data_in(void *buf, size_t *datalen, size_t *buflen);
+		virtual int data_out(void *buf, size_t *datalen, size_t *buflen);
 
 	protected:
 		int compress(unsigned char *in, size_t in_len, unsigned char *out, size_t out_len);

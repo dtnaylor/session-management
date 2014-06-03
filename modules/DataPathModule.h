@@ -37,10 +37,29 @@ enum DataPathState {
 class DataPathModule {
 	public:
 
-		virtual void initialize(Preferences &prefs, ContextualInfo &info) = 0;
+		/**
+		* @brief Tell the module to prepare itself for the new session.
+		*
+		* @param prefs User, App, and Admin preferences
+		* @param info Information about the network and the device
+		* @param initiator true if this endpoint started the session (so
+		* 					the module knows if it's the "server" or "client")
+		*/
+		virtual void initialize(Preferences &prefs, ContextualInfo &info, bool initiator) = 0;
 
-		//virtual void handshake( ... ) = 0; // TODO
+		/**
+		* @brief Test if the module is done sending/receiving handshake messages
+		*
+		* @return true if the module is done with its handshake; false otherwise
+		*/
+		virtual bool handshake_done() = 0;
 
+		/**
+		* @brief Test if the module is ready to transmit/receive data.
+		*
+		* @return true if the module is ready; false otherwise
+		*/
+		virtual bool ready() = 0;
 		
 		/**
 		* @brief Get the state this module requires all outbound data to be in.
@@ -57,8 +76,35 @@ class DataPathModule {
 		*/
 		virtual DataPathState get_resulting_data_path_state() = 0;
 
-		//virtual void data_in( ... ) = 0;  // TODO
-		//virtual void data_out( ... ) = 0; // TODO
+		/**
+		* @brief Process inbound data.
+		*
+		* The data may change size during processing; if the processed data no
+		* longer fits in the original buffer, data_out() allocates a new buffer
+		* and frees the original. datalen and buflen will be updated accordingly.
+		*
+		* @param buf  Buffer of data to process
+		* @param datalen  The length of the data (buffer may be bigger)
+		* @param buflen  The length of the buffer
+		*
+		* @return 0 on success; -1 on failure
+		*/
+		virtual int data_in(void *buf, size_t *datalen, size_t *buflen) = 0;
+
+		/**
+		* @brief Process outbound data.
+		*
+		* The data may change size during processing; if the processed data no
+		* longer fits in the original buffer, data_out() allocates a new buffer
+		* and frees the original. datalen and buflen will be updated accordingly.
+		*
+		* @param buf  Buffer of data to process
+		* @param datalen  The length of the data (buffer may be bigger)
+		* @param buflen  The length of the buffer
+		*
+		* @return 0 on success; -1 on failure
+		*/
+		virtual int data_out(void *buf, size_t *datalen, size_t *buflen) = 0;
 
 };
 
