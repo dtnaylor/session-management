@@ -27,6 +27,9 @@
 
 using namespace std;
 
+#define ERR_GENERIC -1
+#define ERR_NEED_MORE_DATA -2
+
 enum DataPathState {
 	kPlaintext,
 	kObscured,
@@ -83,11 +86,20 @@ class DataPathModule {
 		* longer fits in the original buffer, data_out() allocates a new buffer
 		* and frees the original. datalen and buflen will be updated accordingly.
 		*
+
+		*
 		* @param buf  Buffer of data to process
 		* @param datalen  The length of the data (buffer may be bigger)
 		* @param buflen  The length of the buffer
 		*
-		* @return 0 on success; -1 on failure
+		* @return 0 on success; ERR_* on failure:
+		*	ERR_NEED_MORE_DATA
+		* 		If the module needs more data from the network before it can 
+		*		process it (e.g., the SSL module needs a full SSL record), 
+		*		data_in() returns ERR_NEED_MORE_DATA. The session manager
+		*		should call recv() again and try data_in() again when it has
+		*		more data.
+		*
 		*/
 		virtual int data_in(void *buf, size_t *datalen, size_t *buflen) = 0;
 
@@ -102,7 +114,7 @@ class DataPathModule {
 		* @param datalen  The length of the data (buffer may be bigger)
 		* @param buflen  The length of the buffer
 		*
-		* @return 0 on success; -1 on failure
+		* @return 0 on success; ERR_* on failure
 		*/
 		virtual int data_out(void *buf, size_t *datalen, size_t *buflen) = 0;
 

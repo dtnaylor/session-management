@@ -6,10 +6,10 @@ CFLAGS += -c -fpic
 CPPFLAGS=$(CFLAGS)
 LDFLAGS += -lz -lssl -lcrypto 
 
-MODULE_SOURCES=CompressionModule.cpp
+MODULE_SOURCES=CompressionModule.cpp EncryptionModule.cpp
 SOURCES=$(MODULE_SOURCES) Preferences.cpp ContextualInfo.cpp
 
-MODULE_HEADERS=DataPathModule.h CompressionModule.h
+MODULE_HEADERS=DataPathModule.h CompressionModule.h EncryptionModule.h
 HEADERS=$(MODULE_HEADERS) Preferences.h ContextualInfo.h
 
 OBJS=$(SOURCES:.cpp=.o)
