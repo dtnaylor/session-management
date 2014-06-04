@@ -37,6 +37,10 @@ void EncryptionModule::initialize(Preferences &prefs, ContextualInfo &info, bool
 	(void)info;
 	(void)initiator;
 
+	// if we're the initiator, first step in handshake is to send client hello.
+	// if we're the server, first step is to wait for client hello
+	handshake_status_ = initiator ? kSendClientHello : kWaitForClientHello;
+
 	// generate a new master keypair (on a real server, this would be long-lived
 	// and signed by a CA)
 	master_keypair_ = RSA_generate_key(RSA_KEY_LENGTH, RSA_PUB_EXPONENT, NULL, NULL);
@@ -70,7 +74,7 @@ DataPathState EncryptionModule::get_resulting_data_path_state() {
 int EncryptionModule::data_in(void *buf, size_t *datalen, size_t *buflen) {
 
 	if (!handshake_done_) {
-		// TODO
+		return handshake_in(buf, datalen, buflen);
 	}
 
 	/* to decrease the chance we don't receive the full message,
@@ -108,7 +112,7 @@ int EncryptionModule::data_in(void *buf, size_t *datalen, size_t *buflen) {
 int EncryptionModule::data_out(void *buf, size_t *datalen, size_t *buflen) {
 	
 	if (!handshake_done_) {
-		// TODO
+		return handshake_out(buf, datalen, buflen);
 	}
 
 	/* alloc a new buffer to hold the ciphertext */
@@ -136,6 +140,274 @@ int EncryptionModule::data_out(void *buf, size_t *datalen, size_t *buflen) {
 
 
 
+
+
+
+
+
+/* handshake */
+
+int EncryptionModule::handshake_in(void *buf, size_t *datalen, size_t *buflen) {
+
+	/* pick up where we left off in the handshake */
+	switch(handshake_status_) {
+		case kWaitForClientHello: // server-side
+		{
+			/* make sure the data is a complete client hello */
+			if (strcmp("CLIENT HELLO", (char*)buf) != 0) {
+				ERROR("ERROR: received message was not CLIENT HELLO\n");
+				return ERR_NEED_MORE_DATA;
+			} else {
+				// FIXME: inefficient!
+				int hello_len = strlen("CLIENT HELLO");
+				void* newbuf = (void*)malloc(*buflen);
+				memcpy(newbuf, buf+hello_len, *datalen-hello_len);
+				*datalen -= hello_len;
+				free(buf);
+				buf = newbuf;  // FIXME: need pointer to pointer
+
+				handshake_status_ = kSendServerHello;
+				return 0;
+			}
+			
+		}
+
+
+		case kWaitForServerHello:  // client-side
+		{
+			/* Wait for SERVER HELLO */
+			// Receive public key + temporary public key signed by server's long-term private key
+			// Continue receiving until we see "SERVER DONE"
+			
+			// FIXME: this assumes there's no handshake data after us!
+			if (*datalen < 11 || strcmp("SERVER DONE", (char*)(buf+*datalen-11)) != 0) {
+				ERROR("Did not receive complete SERVER DONE. Waiting for more data\n");
+				return ERR_NEED_MORE_DATA;
+			}
+
+			/* Parse public keys from SERVER HELLO */
+			int offset = strlen("SERVER HELLO");
+			char *keys = (char*)buf+offset;  // start of signed portion of message
+
+			uint32_t *keybufsizeptr = (uint32_t*)buf+offset;
+			uint32_t keybufsize = *keybufsizeptr; // TODO: error checking here
+			offset += sizeof(uint32_t);
+			RSA *pubkey = deserialize_rsa_pub_key((char*)buf+offset, keybufsize);
+			offset += keybufsize;
+
+			uint32_t *tempkeybufsizeptr = (uint32_t*)buf+offset;
+			uint32_t tempkeybufsize = *tempkeybufsizeptr;
+			offset += sizeof(uint32_t);
+			session_pub_key_ = deserialize_rsa_pub_key((char*)buf+offset, tempkeybufsize);
+			offset += tempkeybufsize;
+
+			uint32_t *siglenptr = (uint32_t*)buf+offset;
+			uint32_t siglen = *siglenptr;
+			offset += sizeof(uint32_t);
+			char* sig = (char*)buf+offset;
+			offset += siglen;
+			DBGF("Received keys:\n\tkeylen: %d\n\ttempkeylen: %d\n\tsiglen: %d", keybufsize, tempkeybufsize, siglen);
+
+			/* Verify two things:
+			 *	1) in the real world, verify the key in the cert
+			 *	2) verify the sig so we trust the temp key
+			 */
+			if (verify(pubkey, keys, keybufsize+tempkeybufsize+2*sizeof(uint32_t), sig, siglen) != 1) {
+				WARN("Unable to verify signature on temporary RSA keypair! Closing connection.");
+				return ERR_GENERIC;
+			}
+
+				
+			// FIXME: inefficient!
+			void* newbuf = (void*)malloc(*buflen);
+			int used_len = offset + strlen("SERVER DONE");
+			memcpy(newbuf, buf+used_len, *datalen-used_len);
+			*datalen -= used_len;
+			free(buf);
+			buf = newbuf; // FIXME need pointer to pointer
+
+			handshake_status_ = kSendPreMasterSecret;
+			return 0;
+		}
+
+
+		case kWaitForPreMasterSecret:  // server-side
+		{
+			/* Receive and decrypt pre-master secret */
+			size_t expecting = RSA_size(session_keypair_); // TODO: have client send key size?
+			if (*datalen < expecting) {
+				WARN("Did not receive full PMS. Waiting for more data.\n");
+				return ERR_NEED_MORE_DATA;
+			}
+
+
+			unsigned char* pms = (unsigned char*)malloc(RSA_size(session_keypair_));
+			int plaintext_len;
+			if ( (plaintext_len = priv_decrypt(session_keypair_, 
+									pms, RSA_size(session_keypair_), 
+									(unsigned char*)buf, *datalen)) == -1) {  // FIXME what if there's more data for modules above us?
+				ERROR("ERROR decrypting session key");
+				return ERR_GENERIC;
+			}
+			if (plaintext_len != PRE_MASTER_SECRET_LENGTH) {
+				ERROR("Decrypted key material is not of size PRE_MASTER_SECRET_LENGTH");
+				return ERR_GENERIC;
+			}
+			if (VERBOSITY >= V_DEBUG) {
+				DBG("Pre_Master Secret:");
+				print_bytes(pms, PRE_MASTER_SECRET_LENGTH);
+			}
+
+
+			/* Init symmetric session ciphers with pre-master secret.
+			   Client encrypt context initialized with same key data as
+			   server decrypt context and vice versa. */
+			uint32_t salt[] = SALT;
+			if (aes_init(&pms[PRE_MASTER_SECRET_LENGTH/2], PRE_MASTER_SECRET_LENGTH/2, 
+						 pms, PRE_MASTER_SECRET_LENGTH/2, 
+						 (unsigned char *)&salt, en_, de_)) {
+				ERROR("ERROR initializing AES ciphers");
+				return ERR_GENERIC;
+			}
+			free(pms);
+			
+
+			/* remove our handshake data before next module gets buf */
+			// FIXME: inefficient!
+			void* newbuf = (void*)malloc(*buflen);
+			memcpy(newbuf, buf+expecting, *datalen-expecting);
+			*datalen -= expecting;
+			free(buf);
+			buf = newbuf; // FIXME need pointer to pointer
+
+
+			/* done with handshake */
+			handshake_status_ = kDone;
+			handshake_done_ = true;
+			ready_ = true;
+			return 0;
+		}
+		default:
+			ERROR("Unknown handshake status\n");
+			return ERR_GENERIC;
+	}
+
+}
+
+int EncryptionModule::handshake_out(void *buf, size_t *datalen, size_t *buflen) {
+
+	/* pick up where we left off in the handshake.
+	   append the next portion of the handshake to buf, after whatever handshake
+	   data may be ther already. */
+	switch(handshake_status_) {
+		case kSendClientHello:  // client-side
+		{
+			/* Send CLIENT HELLO */
+			int hello_len = sprintf((char*)(buf+*datalen), "CLIENT HELLO");
+			*datalen += hello_len;
+
+			handshake_status_ = kWaitForServerHello;
+			return 0;
+		}
+		case kSendServerHello:  // server-side
+		{
+			/* Send SERVER HELLO */
+			int hello_len = sprintf((char*)(buf+*datalen), "SERVER HELLO");
+			*datalen += hello_len;
+
+
+			/* Send public key + temporary public key signed by long-term private key */
+			//
+			// Copy the following into buf:
+			// keylen || key || tempkeylen || tempkey || siglen || sig
+			//
+			size_t offset = 0;
+			char* base = (char*)buf+*datalen;
+			int base_buflen = *buflen-*datalen;
+
+			uint32_t keybufsize = serialize_rsa_pub_key(master_keypair_, base+sizeof(uint32_t), base_buflen-offset-sizeof(uint32_t));
+			uint32_t* keybufsizeptr = (uint32_t*)base;
+			*keybufsizeptr = keybufsize;
+			offset += (sizeof(uint32_t) + keybufsize);
+
+			uint32_t tempkeybufsize = serialize_rsa_pub_key(session_keypair_, base+sizeof(uint32_t)+offset, base_buflen-offset-sizeof(uint32_t));
+			uint32_t* tempkeybufsizeptr = (uint32_t*)(base+offset);
+			*tempkeybufsizeptr = tempkeybufsize;
+			offset += (sizeof(uint32_t) + tempkeybufsize);
+
+			uint32_t siglen = sign(master_keypair_, base, offset, base+offset+sizeof(uint32_t), base_buflen-offset-sizeof(uint32_t));
+			uint32_t* siglenptr = (uint32_t*)(base+offset);
+			*siglenptr = siglen;
+			offset += sizeof(uint32_t);
+			offset += siglen;
+
+			*datalen += offset;
+
+			DBGF("Sent keys (%d bytes)\n\tkeylen: %d\n\ttempkeylen: %d\n\tsiglen:%d", offset, keybufsize, tempkeybufsize, siglen);
+
+
+			/* Send SERVER (hello) DONE */
+			int done_len = sprintf((char*)(buf+*datalen), "SERVER DONE");
+			*datalen += done_len;
+
+			handshake_status_ = kWaitForPreMasterSecret;
+			return 0;
+		}
+
+
+		case kSendPreMasterSecret:  // client-side
+		{
+			// We can start adding data at base
+			char* base = (char*)buf+*datalen;
+			int base_buflen = *buflen-*datalen;
+
+			/* Generate pre-master secret and send to server, encrypted with session_pub_key_ */
+			unsigned char* pms = (unsigned char*)malloc(PRE_MASTER_SECRET_LENGTH);
+    		if (RAND_bytes(pms, PRE_MASTER_SECRET_LENGTH) != 1) {
+    		    ERROR("ERROR: Couldn't generate pre-master secret");
+				return ERR_GENERIC;
+    		}
+			if (VERBOSITY >= V_DEBUG) {
+				DBG("Pre-Master Secret:");
+				print_bytes(pms, PRE_MASTER_SECRET_LENGTH);
+			}
+
+			int ciphertext_len;
+			if ( (ciphertext_len = pub_encrypt(session_pub_key_, 
+									pms, PRE_MASTER_SECRET_LENGTH, 
+									base, base_buflen)) == -1 ) {
+				ERROR("ERROR: Unable to encrypt session key");
+				return ERR_GENERIC;
+			}
+
+			*datalen += ciphertext_len;
+    		
+
+
+			/* Init symmetric session ciphers with pre-master secret.
+			   Client encrypt context initialized with same key data as
+			   server decrypt context and vice versa. */
+			uint32_t salt[] = SALT;
+			if (aes_init(pms, PRE_MASTER_SECRET_LENGTH/2, 
+						 &pms[PRE_MASTER_SECRET_LENGTH/2], PRE_MASTER_SECRET_LENGTH/2, 
+						 (unsigned char *)&salt, en_, de_)) {
+				ERROR("ERROR initializing AES ciphers");
+				return ERR_GENERIC;
+			}
+			free(pms);
+
+
+			/* done with handshake */
+			handshake_status_ = kDone;
+			handshake_done_ = true;
+			ready_ = true;
+			return 0;
+		}
+		default:
+			ERROR("Unknown handshake status\n");
+			return ERR_GENERIC;
+	}
+}
 
 
 

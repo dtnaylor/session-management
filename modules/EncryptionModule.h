@@ -35,6 +35,19 @@
 #define PRE_MASTER_SECRET_LENGTH 32  /* in bytes */
 #define SALT {7509, 9022}
 
+/* constants for tracking handshake progress */
+enum HandshakeStatus {
+	kSendClientHello,
+	kWaitForServerHello,
+	kSendPreMasterSecret,
+
+	kWaitForClientHello,
+	kSendServerHello,
+	kWaitForPreMasterSecret,
+
+	kDone
+};
+
 class EncryptionModule : public DataPathModule {
 	public:
 		virtual void initialize(Preferences &prefs, ContextualInfo &info, bool initiator);
@@ -51,6 +64,14 @@ class EncryptionModule : public DataPathModule {
 	private:
 		bool handshake_done_;
 		bool ready_;
+
+		/* handshake helper methods */
+		int handshake_in(void *buf, size_t *datalen, size_t *buflen);
+		int handshake_out(void *buf, size_t *datalen, size_t *buflen);
+
+		/* keep track of handshake progress */
+		HandshakeStatus handshake_status_;
+		RSA *session_pub_key_;
 
 		RSA *master_keypair_;
 		RSA *session_keypair_;
