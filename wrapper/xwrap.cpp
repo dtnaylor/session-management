@@ -1,5 +1,5 @@
 
-#define _GNU_SOURCE
+//#define _GNU_SOURCE
 #include <stdio.h>
 #include <dlfcn.h>
 #include <stdarg.h>
@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-
+#include "Manager.h"
 
 #define XIA_PRELOAD
 
@@ -76,7 +76,7 @@ DECLARE(int, fprintf, FILE *stream, const char *format, ...);
 //****************************************************************************
 // set up logging parameters
 //
-int _log_trace = 0;
+int _log_trace = 1;
 int _log_warning = 0;
 int _log_info = 0;
 FILE *_log = NULL;
@@ -134,6 +134,8 @@ void __attribute__ ((constructor)) xwrap_init(void)
 **
 ******************************************************************************/
 
+Manager session_manager;
+
 /*
  File I/O remappings start here
 */
@@ -153,7 +155,19 @@ int connect(int fd, const struct sockaddr *addr, socklen_t len)
 	int rc;
 	TRACE();
 
+    //int session_interface = session_manager.getInterface(fd);
+    //int session_transport = session_manager.getTransport(fd);
+    if (session_manager.instantiateModules(fd)) {
+        return -1;
+    }
+
+    // probably want to do something here to force using a 
+    // specific interface + transport
 	rc = __real_connect(fd, addr, len);
+
+    // send a bit array of which modules you wish to use
+    __real_send(fd, session_manager.getModulesAsBitArray(fd),
+                session_manager.getBitArrayLen(), 0);
 
 	return rc;
 }
@@ -175,6 +189,19 @@ int accept(int fd, struct sockaddr *addr, socklen_t *addr_len)
 
 	rc = __real_accept(fd, addr, addr_len);
 
+    char lenc[1];
+    if (__real_recv(fd, lenc, 1, 0)) {
+        return -1;
+    }
+    int len = atoi(lenc);
+    char *buf = (char *) malloc(len);
+    if (__real_recv(fd, buf, len, 0)) {
+        return -1;
+    }
+    if (session_manager.instantiateModulesFromBitArray(fd, buf, len)) {
+        return -1;
+    }
+
 	return rc;
 }
 
@@ -184,6 +211,10 @@ ssize_t send(int fd, const void *buf, size_t n, int flags)
 	int rc;
 	TRACE();
 
+    n = session_manager.send(fd, (char*)buf, n);
+    if(n == 0) {
+        return -1;
+    }
 	rc = __real_send(fd, buf, n, flags);
 
 	return rc;
@@ -195,6 +226,10 @@ ssize_t recv(int fd, void *buf, size_t n, int flags)
 	TRACE();
 
 	rc = __real_recv(fd, buf, n, flags);
+    if (rc > 0) {
+        // Need to be careful that we don't exceed n
+        rc = session_manager.recv(fd, (char *)buf, rc, n);
+    }
 
 	return rc;
 }
@@ -231,6 +266,7 @@ int close(int fd)
 	TRACE();
 
 	rc = __real_close(fd);
+    session_manager.close(fd);
 
 	return rc;
 }
