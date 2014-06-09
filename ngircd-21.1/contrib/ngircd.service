@@ -1,0 +1,11 @@
+[Unit]
+Description=Next Generation IRC Daemon
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/sbin/ngircd
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
