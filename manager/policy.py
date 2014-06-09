@@ -102,8 +102,8 @@ class Policy(object):
         self.context_predicates = context_predicates
         self.outcome = outcome
 
-     # test if this predicate applies to a given flow and context dict
-     def policy_applies(self, app, flow_type, context_dict):
+    # test if this predicate applies to a given flow and context dict
+    def policy_applies(self, app, flow_type, context_dict):
         applies = self.flow_predicate.test(app, flow_type)
         for context_pred in self.context_predicates:
             applies = applies and context_pred.test(context_dict)
