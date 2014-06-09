@@ -84,6 +84,7 @@ class ModuleName(object):
     LTE = 'lte'
 
 class Outcome(object):
+    # only one of these should be set, but we don't check
     def __init__(self, include_module=None, exclude_module=None, priority=None):
         self.include_module = include_module
         self.exclude_module = exclude_module
@@ -95,8 +96,15 @@ class Outcome(object):
 ## POLICIES
 ##
 class Policy(object):
-    def __init__(self, role, flow_predicate, context_predicate, outcome):
+    def __init__(self, role, flow_predicate, context_predicates, outcome):
         self.role = role
         self.flow_predicate  = flow_predicate
-        self.context_predicate = context_predicate
+        self.context_predicates = context_predicates
         self.outcome = outcome
+
+     # test if this predicate applies to a given flow and context dict
+     def policy_applies(self, app, flow_type, context_dict):
+        applies = self.flow_predicate.test(app, flow_type)
+        for context_pred in self.context_predicates:
+            applies = applies and context_pred.test(context_dict)
+        return applies
