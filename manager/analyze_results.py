@@ -2,10 +2,6 @@ import itertools
 from collections import defaultdict
 from policy import *
 
-import sys
-sys.path.append('../../tools/myplot')
-import myplot
-
 # test if a configuration is "good":
 #   1) each module receives data in the state it requires
 #   2) specific properties are satisfied << NO -- this is just a conflict
@@ -56,10 +52,5 @@ def count_legal_configurations():
         if test_configuration(conf): legal += 1
 
     print 'Num configurations (legal/total):\t%d/%d' % (legal, total)
-
-
-
-def plot_conflicts(policy_set_1, policiy_set_2):
-    myplot.heatmap('/Users/dnaylor/Desktop/heatmap.pdf')
 
 
