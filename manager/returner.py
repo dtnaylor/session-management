@@ -35,7 +35,8 @@ def GoodiesClass(policies, context, modules):
             elif policy.outcome.priority[0] == GeneralConcern.ENERGY:
                 pass
             elif policy.outcome.priority[0] == GeneralConcern.COST:
-                new_modules.append([ModuleName.COMPRESSION, ModuleName.TRAFFIC_SHAPING])
+                new_modules += [ModuleName.COMPRESSION, ModuleName.TRAFFIC_SHAPING]
+    new_modules = list(set(new_modules))
     return (new_modules, [])
 
 def TransportClass(policies, context, modules):

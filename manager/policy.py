@@ -193,4 +193,7 @@ MODULE_STATES = {
     ModuleName.LTE             : {'required': DataPathState.MUTABLE_BYTES,
                                   'resulting': DataPathState.UNCHANGED,
                                   'class': ModuleClassName.NIC},
+    ModuleName.WIFI_AND_LTE    : {'required': DataPathState.MUTABLE_BYTES,
+                                  'resulting': DataPathState.UNCHANGED,
+                                  'class': ModuleClassName.NIC},
 }

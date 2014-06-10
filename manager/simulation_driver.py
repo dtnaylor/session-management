@@ -3,7 +3,8 @@
 import numpy
 from session_manager import SessionManager
 import analyze_results as ar
-
+from generator import generator
+from returner import returner
 
 def main():
     
@@ -13,8 +14,8 @@ def main():
     # policy sets on one axis and admin policy sets on the other: intersection
     # is red if conflict, green if not
     configurations = []
-    for <conf> in <generator>: # TODO
-        module_set, conflicts = <returner> # TODO
+    for (policies, context) in generator(): 
+        module_set, conflicts = returner(policies, context)
         module_list = SessionManager().run(module_set)
         configurations.append(module_list)
 
@@ -29,14 +30,14 @@ def main():
     # going through all policy sets and calculate the mean configuration count.
     # Make sure context includes flow type and the battery/data usage.
     configuration_counts = []
-    for <policy set> in <generator>: # TODO
-        configurations = []
-        for <context> in <generator>: # TODO
-            module_set, conflicts = <returner> # TODO
-            module_list = SessionManager().run(module_set)
-            configurations.append(module_list)
+    # for <policy set> in <generator>: # TODO
+    #     configurations = []
+    #     for <context> in <generator>: # TODO
+    #         module_set, conflicts = <returner> # TODO
+    #         module_list = SessionManager().run(module_set)
+    #         configurations.append(module_list)
 
-        configuration_counts.append(ar.count_configurations(configurations))
+    #     configuration_counts.append(ar.count_configurations(configurations))
 
     print 'TEST TWO: mean configurations per policy set: %f' %\
         numpy.mean(configuration_counts)
