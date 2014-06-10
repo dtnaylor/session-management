@@ -7,7 +7,7 @@ class Role(object):
 ##
 ## FLOW PREDICATES
 ##
-class FLowType(object):
+class FlowType(object):
     MULTIMEDIA = 'multimedia'
     LOW_LATENCY = 'low latency'
     BULK = 'bulk'
@@ -31,6 +31,8 @@ class FlowPredicate(object):
             flow_type == self.flow_type
         return app_match and type_match
 
+    def __str__(self):
+        return "(%s, %s)" % (self.app, self.flow_type)
 
 
 ##
@@ -40,8 +42,15 @@ class ContextVar(object):
     NETWORK_TYPE = 'network type'
     BW = 'bandwidth'
     LATENCY = 'latency'
-    LTE_DATA_USATE = 'LTE data usage'
+    LTE_DATA_USAGE = 'LTE data usage'
     BATTERY = 'battery'
+    APPLICATION = 'application'
+    FLOW_TYPE = 'flow type'
+
+class NetworkType(object):
+    WIFI = 'wifi'
+    LTE = 'lte'
+    WIFI_AND_LTE = 'wifi+lte'
 
 class ContextPredicate(object):
     # relation should be a function like that compares value to its argument X:
@@ -57,9 +66,13 @@ class ContextPredicate(object):
     # context_dict is a dict with all network and devices values, like
     # { ContextVar.BATTERY = 0.87 }
     def test(self, context_dict):
-        return self.relation(self.value, context_dict[self.var])
+        return True if self.value == '*' else \
+            self.relation(self.value, context_dict[self.var])
 
-
+    def __str__(self):
+        if self.relation == None:
+            return '*'
+        return "%s %s %s" % (self.var, self.relation, self.value)
 
 
 ##
@@ -82,6 +95,7 @@ class ModuleName(object):
     IPV6 = 'IPv6'
     WIFI = 'wifi'
     LTE = 'lte'
+    WIFI_AND_LTE = 'wifi+lte'
 
 class Outcome(object):
     # only one of these should be set, but we don't check
@@ -90,7 +104,12 @@ class Outcome(object):
         self.exclude_module = exclude_module
         self.priority = priority
 
-
+    def __str__(self):
+        if self.include_module:
+            return "INCLUDE %s" % self.include_module
+        if self.exclude_module:
+            return "EXCLUDE %s" % self.exclude_module
+        return '(%s, %s, %s)' % (self.priority)
 
 ##
 ## POLICIES
@@ -102,9 +121,18 @@ class Policy(object):
         self.context_predicates = context_predicates
         self.outcome = outcome
 
-     # test if this predicate applies to a given flow and context dict
-     def policy_applies(self, app, flow_type, context_dict):
+    # test if this predicate applies to a given flow and context dict
+    def policy_applies(self, app, flow_type, context_dict):
         applies = self.flow_predicate.test(app, flow_type)
         for context_pred in self.context_predicates:
             applies = applies and context_pred.test(context_dict)
         return applies
+
+    def __str__(self):
+        c_str = ""
+        for c in self.context_predicates:
+            c_str += '%s,' % c
+        c_str = list(set(c_str.split(',')[:-1]))
+        c_str = ' and '.join(c_str)
+        c_str = "*" if c_str == "" else c_str
+        return "(%s) if %s && %s then %s" % (self.role, self.flow_predicate, c_str, self.outcome)
