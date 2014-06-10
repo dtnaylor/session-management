@@ -1,5 +1,10 @@
+import itertools
 from collections import defaultdict
 from policy import *
+
+import sys
+sys.path.append('../../tools/myplot')
+import myplot
 
 # test if a configuration is "good":
 #   1) each module receives data in the state it requires
@@ -34,3 +39,27 @@ def count_configurations(configurations):
         conf_set.add(tuple(conf))
 
     return len(conf_set)
+
+# generate all possible orderings of modules
+def generate_all_possible_configurations():
+    for i in range(len(ModuleName.module_list())+1):
+        for conf in itertools.permutations(ModuleName.module_list(), i):
+            yield conf
+
+# out of all possible data path module configurations, how many are legal
+# (as determined by test_configuration())?
+def count_legal_configurations():
+    total = 0
+    legal = 0
+    for conf in generate_all_possible_configurations():
+        total += 1
+        if test_configuration(conf): legal += 1
+
+    print 'Num configurations (legal/total):\t%d/%d' % (legal, total)
+
+
+
+def plot_conflicts(policy_set_1, policiy_set_2):
+    myplot.heatmap('/Users/dnaylor/Desktop/heatmap.pdf')
+
+

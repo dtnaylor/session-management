@@ -12,11 +12,23 @@ class SessionManager(object):
         self.context_dict = context_dict
 
     # configure the session! returns ordered list of modules
-    def run(self, network_modules=[], other_modules=[], nic_modules=[]):
-        # TODO: get modules from module classes
-        #nic_modules = []
-        #network_modules = []
-        #other_modules = []
+    def run(self, modules=[], network_modules=[], other_modules=[], nic_modules=[]):
+
+        # break modules into categories if we got them in one list
+        if modules:
+            nic_modules = []
+            network_modules = []
+            other_modules = []
+
+            for module in modules:
+                info = MODULE_STATES[module]
+                if info['class'] == ModuleClassName.NIC:
+                    nic_modules.append(module)
+                elif info['class'] == ModuleClassName.NETWORK:
+                    network_modules.append(module)
+                else:
+                    other_modules.append(module)
+         
 
         # STEP ONE: group modules by ending state
         m_by_result = defaultdict(list)
@@ -38,15 +50,13 @@ class SessionManager(object):
 
         return module_list
 
-def dbg_conf(other_modules=[], nic_modules=[], network_modules=[]):
-    conf = SessionManager().run(other_modules=other_modules,\
+def dbg_conf(modules=[], other_modules=[], nic_modules=[], network_modules=[]):
+    conf = SessionManager().run(modules=modules, other_modules=other_modules,\
         nic_modules=nic_modules, network_modules=network_modules)
     print conf
     print ar.test_configuration(conf)
     return conf
         
-
-
 
 
 def main():
@@ -55,6 +65,7 @@ def main():
     conf_list = []
     conf_list.append(dbg_conf(other_modules=[ModuleName.ENCRYPTION, ModuleName.COMPRESSION, ModuleName.PII_LEAK_DETECTION]))
     conf_list.append(dbg_conf(other_modules=[ModuleName.TCP, ModuleName.ENCRYPTION, ModuleName.COMPRESSION], nic_modules=[ModuleName.WIFI], network_modules=[ModuleName.IPV4]))
+    conf_list.append(dbg_conf(modules=[ModuleName.TCP, ModuleName.ENCRYPTION, ModuleName.COMPRESSION, ModuleName.WIFI, ModuleName.IPV4]))
     conf_list.append([ModuleName.COMPRESSION, ModuleName.PII_LEAK_DETECTION, ModuleName.ENCRYPTION])
 
     print 'num configurations: %d' % ar.count_configurations(conf_list)

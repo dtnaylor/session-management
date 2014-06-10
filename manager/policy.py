@@ -83,6 +83,10 @@ class ModuleName(object):
     WIFI = 'wifi'
     LTE = 'lte'
 
+    @classmethod 
+    def module_list(cls):
+        return [cls.__dict__[x] for x in cls.__dict__ if x.isupper()]  # HACK!
+
 class Outcome(object):
     # only one of these should be set, but we don't check
     def __init__(self, include_module=None, exclude_module=None, priority=None):
