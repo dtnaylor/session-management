@@ -1,58 +1,9 @@
 #!/usr/bin/env python
 
+import analyze_results as ar
 from collections import defaultdict
 from policy import *
 
-class DataPathState(object):
-    ANY = 0
-    MUTABLE_BYTES = 1
-    ADJUSTABLE_TIMING = 2
-    MUTABLE_DATA = 3
-    VIEWABLE_DATA = 4
-    UNCHANGED = 5
-
-class ModuleClassName(object):
-    LOCAL_EXTRA = 4
-    TRANSPORT = 3
-    NETWORK = 2
-    NIC = 1
-
-    
-MODULE_STATES = {
-    ModuleName.ENCRYPTION :      {'required': DataPathState.ANY,
-                                  'resulting': DataPathState.MUTABLE_DATA,
-                                  'class': ModuleClassName.LOCAL_EXTRA},
-    ModuleName.COMPRESSION :     {'required': DataPathState.VIEWABLE_DATA,
-                                  'resulting': DataPathState.MUTABLE_DATA,
-                                  'class': ModuleClassName.LOCAL_EXTRA},
-    ModuleName.PII_LEAK_DETECTION : {'required': DataPathState.VIEWABLE_DATA,
-                                'resulting': DataPathState.UNCHANGED,
-                                'class': ModuleClassName.LOCAL_EXTRA},
-    ModuleName.TRAFFIC_SHAPING : {'required': DataPathState.ADJUSTABLE_TIMING,
-                                  'resulting': DataPathState.MUTABLE_BYTES,
-                                  'class': ModuleClassName.LOCAL_EXTRA},
-    ModuleName.TCP             : {'required': DataPathState.ADJUSTABLE_TIMING,
-                                  'resulting': DataPathState.ADJUSTABLE_TIMING,
-                                  'class': ModuleClassName.TRANSPORT},
-    ModuleName.UDP             : {'required': DataPathState.ANY,
-                                  'resulting': DataPathState.ADJUSTABLE_TIMING,
-                                  'class': ModuleClassName.TRANSPORT},
-    ModuleName.MPTCP           : {'required': DataPathState.ADJUSTABLE_TIMING,
-                                  'resulting': DataPathState.ADJUSTABLE_TIMING,
-                                  'class': ModuleClassName.TRANSPORT},
-    ModuleName.IPV4            : {'required': DataPathState.MUTABLE_BYTES,
-                                  'resulting': DataPathState.UNCHANGED,
-                                  'class': ModuleClassName.NETWORK},
-    ModuleName.IPV6            : {'required': DataPathState.MUTABLE_BYTES,
-                                  'resulting': DataPathState.UNCHANGED,
-                                  'class': ModuleClassName.NETWORK},
-    ModuleName.WIFI            : {'required': DataPathState.MUTABLE_BYTES,
-                                  'resulting': DataPathState.UNCHANGED,
-                                  'class': ModuleClassName.NIC},
-    ModuleName.LTE             : {'required': DataPathState.MUTABLE_BYTES,
-                                  'resulting': DataPathState.UNCHANGED,
-                                  'class': ModuleClassName.NIC},
-}
 
 
 class SessionManager(object):
@@ -71,13 +22,11 @@ class SessionManager(object):
         m_by_result = defaultdict(list)
         for m in other_modules:
             m_by_result[MODULE_STATES[m]['resulting']].append(m)
-        print m_by_result
 
         # STEP TWO: within each group, sort by required state
         for result in m_by_result:
             m_by_result[result] = sorted(m_by_result[result], reverse=True,\
                 key= lambda x: MODULE_STATES[x]['required'])
-        print m_by_result
 
         # concatenate the lists together
         module_list = []
@@ -86,14 +35,30 @@ class SessionManager(object):
 
         # add network and NICs
         module_list += network_modules + nic_modules
-        print module_list
+
+        return module_list
+
+def dbg_conf(other_modules=[], nic_modules=[], network_modules=[]):
+    conf = SessionManager().run(other_modules=other_modules,\
+        nic_modules=nic_modules, network_modules=network_modules)
+    print conf
+    print ar.test_configuration(conf)
+    return conf
+        
 
 
 
 
 def main():
-    SessionManager().run(other_modules=[ModuleName.ENCRYPTION, ModuleName.COMPRESSION, ModuleName.PII_LEAK_DETECTION])
-    SessionManager().run(other_modules=[ModuleName.TCP, ModuleName.ENCRYPTION, ModuleName.COMPRESSION], nic_modules=[ModuleName.WIFI], network_modules=[ModuleName.IPV4])
+
+    # testing:
+    conf_list = []
+    conf_list.append(dbg_conf(other_modules=[ModuleName.ENCRYPTION, ModuleName.COMPRESSION, ModuleName.PII_LEAK_DETECTION]))
+    conf_list.append(dbg_conf(other_modules=[ModuleName.TCP, ModuleName.ENCRYPTION, ModuleName.COMPRESSION], nic_modules=[ModuleName.WIFI], network_modules=[ModuleName.IPV4]))
+    conf_list.append([ModuleName.COMPRESSION, ModuleName.PII_LEAK_DETECTION, ModuleName.ENCRYPTION])
+
+    print 'num configurations: %d' % ar.count_configurations(conf_list)
+
 
 
 if __name__ == '__main__':

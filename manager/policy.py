@@ -108,3 +108,58 @@ class Policy(object):
         for context_pred in self.context_predicates:
             applies = applies and context_pred.test(context_dict)
         return applies
+
+
+##
+## DATA PATH
+##
+class DataPathState(object):
+    ANY = 0
+    MUTABLE_BYTES = 1
+    ADJUSTABLE_TIMING = 2
+    MUTABLE_DATA = 3
+    VIEWABLE_DATA = 4
+    UNCHANGED = 5
+
+class ModuleClassName(object):
+    LOCAL_EXTRA = 4
+    TRANSPORT = 3
+    NETWORK = 2
+    NIC = 1
+
+    
+MODULE_STATES = {
+    ModuleName.ENCRYPTION :      {'required': DataPathState.ANY,
+                                  'resulting': DataPathState.MUTABLE_DATA,
+                                  'class': ModuleClassName.LOCAL_EXTRA},
+    ModuleName.COMPRESSION :     {'required': DataPathState.VIEWABLE_DATA,
+                                  'resulting': DataPathState.MUTABLE_DATA,
+                                  'class': ModuleClassName.LOCAL_EXTRA},
+    ModuleName.PII_LEAK_DETECTION : {'required': DataPathState.VIEWABLE_DATA,
+                                'resulting': DataPathState.UNCHANGED,
+                                'class': ModuleClassName.LOCAL_EXTRA},
+    ModuleName.TRAFFIC_SHAPING : {'required': DataPathState.ADJUSTABLE_TIMING,
+                                  'resulting': DataPathState.MUTABLE_BYTES,
+                                  'class': ModuleClassName.LOCAL_EXTRA},
+    ModuleName.TCP             : {'required': DataPathState.ADJUSTABLE_TIMING,
+                                  'resulting': DataPathState.ADJUSTABLE_TIMING,
+                                  'class': ModuleClassName.TRANSPORT},
+    ModuleName.UDP             : {'required': DataPathState.ANY,
+                                  'resulting': DataPathState.ADJUSTABLE_TIMING,
+                                  'class': ModuleClassName.TRANSPORT},
+    ModuleName.MPTCP           : {'required': DataPathState.ADJUSTABLE_TIMING,
+                                  'resulting': DataPathState.ADJUSTABLE_TIMING,
+                                  'class': ModuleClassName.TRANSPORT},
+    ModuleName.IPV4            : {'required': DataPathState.MUTABLE_BYTES,
+                                  'resulting': DataPathState.UNCHANGED,
+                                  'class': ModuleClassName.NETWORK},
+    ModuleName.IPV6            : {'required': DataPathState.MUTABLE_BYTES,
+                                  'resulting': DataPathState.UNCHANGED,
+                                  'class': ModuleClassName.NETWORK},
+    ModuleName.WIFI            : {'required': DataPathState.MUTABLE_BYTES,
+                                  'resulting': DataPathState.UNCHANGED,
+                                  'class': ModuleClassName.NIC},
+    ModuleName.LTE             : {'required': DataPathState.MUTABLE_BYTES,
+                                  'resulting': DataPathState.UNCHANGED,
+                                  'class': ModuleClassName.NIC},
+}
