@@ -27,14 +27,15 @@ def test_configuration(module_list, policies=None):
         return False
 
     # make sure specific user policies are met...
-    for policy in policies:
-        if policy.role == Role.USER:
-            if policy.outcome.include_module and\
-                policy.outcome.include_module not in module_list:
-                return False
-            if policy.outcome.exclude_module and\
-                policy.outcome.exclude_module in module_list:
-                return False
+    if policies:
+        for policy in policies:
+            if policy.role == Role.USER:
+                if policy.outcome.include_module and\
+                    policy.outcome.include_module not in module_list:
+                    return False
+                if policy.outcome.exclude_module and\
+                    policy.outcome.exclude_module in module_list:
+                    return False
 
     return True
 
