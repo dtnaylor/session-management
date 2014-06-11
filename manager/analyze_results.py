@@ -1,7 +1,19 @@
 import itertools
-import matplotlib.pyplot as plt
+import numpy
+import matplotlib
 from collections import defaultdict
 from policy import *
+
+#matplotlib settings
+matplotlib.use('PDF')  # save plots as PDF
+font = {'size'   : 20}
+matplotlib.rc('font', **font)
+
+# use TrueType fonts
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+
+import matplotlib.pyplot as plt
 
 # test if a configuration is "good":
 #   1) each module receives data in the state it requires
@@ -71,7 +83,7 @@ def count_legal_configurations():
 
 
 def heatmap(matrix, xlabel=None, ylabel=None, filename=None):
-    plt.pcolor(np.array(matrix), cmap='RdYlGn')
+    plt.pcolor(numpy.array(matrix), cmap='RdYlGn')
     if xlabel: plt.xlabel(xlabel)
     if ylabel: plt.ylabel(ylabel)
     
