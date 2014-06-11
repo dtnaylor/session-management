@@ -10,17 +10,23 @@ def main():
     
     # TEST ONE: All combos of everything -- count total # unique configurations
     # (i.e., module lists)
+    # TEST THREE:  Make sure each configuration we output is correct. (Should
+    # we test includes/excludes? Probably not, because if we do, then conflict
+    # cases will be marked as invalid configurations.)
     # TEST FIVE: How many policy sets had a conflict? Make a heatmap with user
     # policy sets on one axis and admin policy sets on the other: intersection
     # is red if conflict, green if not
     configurations = []
+    illegal_configuration_count = 0
     for (policies, context) in generator(): 
         module_set, conflicts = returner(policies, context)
         module_list = SessionManager().run(module_set)
         configurations.append(module_list)
+        if not ar.test_configuration(module_list):
+            illegal_configuration_count += 1
 
-    print 'TEST ONE: total configurations: %d' %\
-        ar.count_configurations(configurations)
+    print 'TEST ONE: total configurations: %d (%d illegal)' %\
+        (ar.count_configurations(configurations), illegal_configuration_count)
 
     # TODO: figure out how to make heatmap from user-app conflicts
 
@@ -43,7 +49,6 @@ def main():
         numpy.mean(configuration_counts)
 
 
-    # TEST THREE:  TODO
 
 
     # TEST FOUR:  For each user policy set, generate all possible
