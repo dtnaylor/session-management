@@ -10,6 +10,9 @@ def main():
     
     # TEST ONE: All combos of everything -- count total # unique configurations
     # (i.e., module lists)
+    # TEST THREE:  Make sure each configuration we output is correct. (Should
+    # we test includes/excludes? Probably not, because if we do, then conflict
+    # cases will be marked as invalid configurations.)
     # TEST FIVE: How many policy sets had a conflict? Make a heatmap with user
     # policy sets on one axis and admin policy sets on the other: intersection
     # is red if conflict, green if not
@@ -17,14 +20,38 @@ def main():
     contextSet = generateContextSet()
     userPolicySets = generateUserPolicySets()
     appPolicySets = generateAppPolicySets()
-    testSet = list(itertools.product(*[userPolicySets, appPolicySets, contextSet]))
-    for (up, ap, c) in testSet: 
-        module_set, conflicts = returner(up, ap, c)
-        module_list = SessionManager().run(module_set)
-        configurations.append(module_list)
+
+    illegal_configuration_count = 0
+    num_conflicting_policy_sets = 0
+    user_policy_set_index = 0
+    app_policy_set_index = 0
+
+    for user_policies in userPolicySets:
+        user_policy_set_index += 1
+
+        for app_policies in appPolicySets:
+            app_policy_set_index += 1
+
+            for context in contextSet:
+                module_set, conflicts = returner(user_policies, app_policies, context)
+                module_list = SessionManager().run(module_set)
+                configurations.append(module_list)
+
+                # count number of illegal configurations
+                if not ar.test_configuration(module_list):
+                    illegal_configuration_count += 1
+
+                # count number of app-user conflicts
+                for conflict in conflicts:
+                    if conflict[0].role != conflict[1].role:
+                        num_conflicting_policy_sets += 1
 
     print 'TEST ONE: total configurations: %d' %\
         ar.count_configurations(configurations)
+    print 'TEST THREE: illegal configurations: %d' %\
+        illegal_configuration_count
+    print 'TEST FIVE: conflicting app-user policy sets: %d' %\
+        num_conflicting_policy_sets
 
     # TODO: figure out how to make heatmap from user-app conflicts
 
@@ -34,20 +61,21 @@ def main():
     # going through all policy sets and calculate the mean configuration count.
     # Make sure context includes flow type and the battery/data usage.
     configuration_counts = []
-    for p in policySet: 
-        configurations = []
-        for c in contextSet: 
-            module_set, conflicts = returner(p, c)
-            module_list = SessionManager().run(module_set)
-            configurations.append(module_list)
+    for user_policies in userPolicySets:
+        for app_policies in appPolicySets:
 
-        configuration_counts.append(ar.count_configurations(configurations))
+            configurations = []
+            for context in contextSet: 
+                module_set, conflicts = returner(user_policies, app_policies, context)
+                module_list = SessionManager().run(module_set)
+                configurations.append(module_list)
+
+            configuration_counts.append(ar.count_configurations(configurations))
 
     print 'TEST TWO: mean configurations per policy set: %f' %\
         numpy.mean(configuration_counts)
 
 
-    # TEST THREE:  TODO
 
 
     # TEST FOUR:  For each user policy set, generate all possible
@@ -55,16 +83,16 @@ def main():
     # legal ordering and satisfy user's includes/excludes). Do the same for the
     # next user policy set. Calculate the mean number of legal configurations
     # per policy set.
-    #legal_configurations_counts = []
-    #for <user policy set> in <generator>: # TODO
-    #    legal = 0
-    #    for module_list in ar.generate_all_possible_configurations():
-    #        if ar.test_configuration(module_list, <user policy set>): # TODO
-    #            legal += 1
-    #    legal_configurations_count.append(legal)
+    legal_configurations_counts = []
+    for user_policies in userPolicySets: 
+       legal = 0
+       for module_list in ar.generate_all_possible_configurations():
+           if ar.test_configuration(module_list, user_policies): 
+               legal += 1
+       legal_configurations_count.append(legal)
 
-    #print 'TEST FOUR: mean legal configurations per user policy set: %f' %\
-    #    numpy.mean(legal_configuration_counts)
+    print 'TEST FOUR: mean legal configurations per user policy set: %f' %\
+       numpy.mean(legal_configuration_counts)
 
 if __name__ == '__main__':
     main()
