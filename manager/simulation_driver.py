@@ -48,8 +48,6 @@ def main():
                 configurations.append(module_list)
                 per_policy_configurations.append(module_list)
 
-            per_policy_configuration_counts.append(ar.count_configurations(per_policy_configurations))
-
                 # count number of illegal configurations
                 if not ar.test_configuration(module_list):
                     illegal_configuration_count += 1
@@ -59,6 +57,8 @@ def main():
                     if conflict[0].role != conflict[1].role:
                         num_conflicting_policy_sets += 1
                         conflict_coordinates.append((user_policy_set_index, app_policy_set_index))
+
+            per_policy_configuration_counts.append(ar.count_configurations(per_policy_configurations))
 
     print 'TEST ONE: total configurations: %d' %\
         ar.count_configurations(configurations)
