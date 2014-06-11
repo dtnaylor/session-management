@@ -60,7 +60,7 @@ def main():
     matrix = numpy.zeros(user_policy_set_index+1, app_policy_set_index+1)
     for conflict in conflict_coordinates:
         matrix[conflict[0]][conflict[1]] = 1
-    ar.heatmap(matrix, xlabel='User Policies', ylabel='App Policies'\
+    ar.heatmap(matrix, xlabel='User Policies', ylabel='App Policies',\
         filename='app-user-conflicts.pdf')
 
 
