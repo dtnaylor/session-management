@@ -46,7 +46,21 @@ def main():
     # TEST THREE:  TODO
 
 
-    # TEST FOUR:  TODO
+    # TEST FOUR:  For each user policy set, generate all possible
+    # configurations (module lists); count how many of them are good (e.g.,
+    # legal ordering and satisfy user's includes/excludes). Do the same for the
+    # next user policy set. Calculate the mean number of legal configurations
+    # per policy set.
+    #legal_configurations_counts = []
+    #for <user policy set> in <generator>: # TODO
+    #    legal = 0
+    #    for module_list in ar.generate_all_possible_configurations():
+    #        if ar.test_configuration(module_list, <user policy set>): # TODO
+    #            legal += 1
+    #    legal_configurations_count.append(legal)
+
+    #print 'TEST FOUR: mean legal configurations per user policy set: %f' %\
+    #    numpy.mean(legal_configuration_counts)
 
 if __name__ == '__main__':
     main()

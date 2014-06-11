@@ -4,12 +4,13 @@ from policy import *
 
 # test if a configuration is "good":
 #   1) each module receives data in the state it requires
-#   2) specific properties are satisfied << NO -- this is just a conflict
+#   2) user's specific properties are satisfied, if policies are provided
 #   3) there is at least one NIC, one network and one transport
-def test_configuration(module_list):
+def test_configuration(module_list, policies=None):
     state = DataPathState.VIEWABLE_DATA
     class_counts = defaultdict(int)
 
+    # make sure modules have the right data path state
     for module in module_list:
         info = MODULE_STATES[module]
 
@@ -19,10 +20,21 @@ def test_configuration(module_list):
         if info['resulting'] != DataPathState.UNCHANGED:
             state = info['resulting']
 
+    # make sure there's at least one NIC, one transport, and one network
     if class_counts[ModuleClassName.NIC] <= 0 or\
        class_counts[ModuleClassName.NETWORK] != 1 or\
        class_counts[ModuleClassName.TRANSPORT] != 1:
         return False
+
+    # make sure specific user policies are met...
+    for policy in policies:
+        if policy.role == Role.USER:
+            if policy.outcome.include_module and\
+                policy.outcome.include_module not in module_list:
+                return False
+            if policy.outcome.exclude_module and\
+                policy.outcome.exclude_module in module_list:
+                return False
 
     return True
 
