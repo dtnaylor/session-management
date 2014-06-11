@@ -4,6 +4,17 @@ import sys
 import itertools
 from policy import *
 
+def logGoodiesConflicts(policies):
+    # check that the two policies to consider are both the same module
+    # and that they are include v exclude
+    policies = [p[0] for p in policies if p[1] == True]
+    possible_conflicts = list(itertools.combinations(policies, 2))
+    conflicts = []
+    for (p0, p1) in possible_conflicts:
+        if p0.outcome.include_module == p1.outcome.exclude_module or p0.outcome.exclude_module == p1.outcome.include_module:
+            conflicts.append((p0, p1))
+    return conflicts
+
 def logConflicts(policies):
     # is this a user-user conflict, or a user-app conflict?
     # tuple for every pair of policies that conflict
@@ -19,10 +30,9 @@ def GoodiesClass(policies, context, modules):
     for policy in policies:
         if relevant_modules.intersection(set([policy.outcome.include_module, policy.outcome.exclude_module])):
             relevant_policies.append((policy, True))
-        if policy.outcome.priority != None:
+        elif policy.outcome.priority != None:
             relevant_policies.append((policy, False))
-    #I don't think these can conflict in our setup
-    #conflicts = logConflicts(relevant_policies) 
+    conflicts = logGoodiesConflicts(relevant_policies) 
 
     # go through all policies and add the modules:
     new_modules = []
@@ -31,7 +41,7 @@ def GoodiesClass(policies, context, modules):
         if policy.outcome.include_module:
             new_modules.append(policy.outcome.include_module)
 
-        if policy.outcome.priority:
+        elif policy.outcome.priority:
             if policy.outcome.priority[0] == GeneralConcern.SPEED:
                 pass
             elif policy.outcome.priority[0] == GeneralConcern.ENERGY:
@@ -39,7 +49,7 @@ def GoodiesClass(policies, context, modules):
             elif policy.outcome.priority[0] == GeneralConcern.COST:
                 new_modules += [ModuleName.COMPRESSION, ModuleName.TRAFFIC_SHAPING]
     new_modules = list(set(new_modules))
-    return (new_modules, [])
+    return (new_modules, conflicts)
 
 def TransportClass(policies, context, modules):
     relevant_policies = []
@@ -47,7 +57,7 @@ def TransportClass(policies, context, modules):
     for policy in policies:
         if relevant_modules.intersection(set([policy.outcome.include_module, policy.outcome.exclude_module])):
             relevant_policies.append((policy, True))
-        if policy.outcome.priority != None:
+        elif policy.outcome.priority != None:
             relevant_policies.append((policy, False))
     conflicts = logConflicts(relevant_policies)
     used_policy = relevant_policies[0][0]
@@ -86,7 +96,7 @@ def NICClass(policies, context, modules):
         #print policy
         if relevant_modules.intersection(set([policy.outcome.include_module, policy.outcome.exclude_module])):
             relevant_policies.append((policy, True))
-        if policy.outcome.priority != None:
+        elif policy.outcome.priority != None:
             relevant_policies.append((policy, False))
     conflicts = logConflicts(relevant_policies)
     used_policy = relevant_policies[0][0]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import numpy
+import numpy, sys
 from session_manager import SessionManager
 import analyze_results as ar
 from generator import *
@@ -26,6 +26,7 @@ def main():
     user_policy_set_index = 0
     app_policy_set_index = 0
 
+    seen_modules = []
     for user_policies in userPolicySets:
         user_policy_set_index += 1
 
@@ -34,6 +35,7 @@ def main():
 
             for context in contextSet:
                 module_set, conflicts = returner(user_policies, app_policies, context)
+                seen_modules = list(set(module_set+seen_modules))
                 module_list = SessionManager().run(module_set)
                 configurations.append(module_list)
 
@@ -45,13 +47,15 @@ def main():
                 for conflict in conflicts:
                     if conflict[0].role != conflict[1].role:
                         num_conflicting_policy_sets += 1
-
     print 'TEST ONE: total configurations: %d' %\
         ar.count_configurations(configurations)
+    print seen_modules
+    print len(seen_modules)
     print 'TEST THREE: illegal configurations: %d' %\
         illegal_configuration_count
     print 'TEST FIVE: conflicting app-user policy sets: %d' %\
         num_conflicting_policy_sets
+    sys.exit(-1)
 
     # TODO: figure out how to make heatmap from user-app conflicts
 

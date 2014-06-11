@@ -4,74 +4,58 @@ import sys
 import itertools
 from policy import *
 
+general_concerns = [Outcome(priority=c) for c in itertools.permutations((GeneralConcern.ENERGY, GeneralConcern.SPEED, GeneralConcern.COST))]
+
 def generateContextSet():
-    context_NETWORK_TYPE = [NetworkType.WIFI, NetworkType.LTE, NetworkType.WIFI_AND_LTE]
-    context_LTE_DATA_USAGE = [.1, .9]
-    context_BATTERY = [.1, .9]
-    context_APPLICATION = [Application.SPOTIFY, Application.SKYPE, Application.CHROME]
-    context_FLOW_TYPE = [FlowType.MULTIMEDIA, FlowType.LOW_LATENCY, FlowType.BULK]
-    context_list = [context_NETWORK_TYPE, context_LTE_DATA_USAGE, context_BATTERY, context_APPLICATION, context_FLOW_TYPE]
-    context_list = list(itertools.product(*context_list))
+    context = {}
+    context[ContextVar.NETWORK_TYPE] = [NetworkType.WIFI, NetworkType.LTE, NetworkType.WIFI_AND_LTE]
+    context[ContextVar.LTE_DATA_USAGE] = [.1, .9]
+    context[ContextVar.BATTERY] = [.1, .9]
+    context[ContextVar.APPLICATION] = [Application.SPOTIFY, Application.SKYPE, Application.CHROME]
+    context[ContextVar.FLOW_TYPE] = [FlowType.MULTIMEDIA, FlowType.LOW_LATENCY, FlowType.BULK]
+
+    (keys,values) = zip(*context.items())
+    context_list = list(itertools.product(*values))
     context = []
     for c in context_list:
-        d = {}
-        d[ContextVar.NETWORK_TYPE] = c[0]
-        d[ContextVar.LTE_DATA_USAGE] = c[1]
-        d[ContextVar.BATTERY] = c[2]
-        d[ContextVar.APPLICATION] = c[3]
-        d[ContextVar.FLOW_TYPE] = c[4]
-        context.append(d)
+        context.append(dict(zip(keys,c)))
     return context
 
 def generateAppPolicySets():
-    app_encryption = [True, False] # required, no preference
-    app_reliability = [True, False] # required, no preference
-    app_concerns = list(itertools.permutations((GeneralConcern.ENERGY, GeneralConcern.SPEED, GeneralConcern.COST)))
-    app = [app_encryption, app_reliability, app_concerns]
+    app = []
+    app.append([Outcome(include_module=ModuleName.ENCRYPTION), None, Outcome(exclude_module=ModuleName.ENCRYPTION)])
+    app.append([Outcome(include_module=ModuleName.PII_LEAK_DETECTION), None, Outcome(exclude_module=ModuleName.PII_LEAK_DETECTION)])
+    app.append([Outcome(include_module=ModuleName.COMPRESSION), None, Outcome(exclude_module=ModuleName.COMPRESSION)])
+    app.append([Outcome(include_module=ModuleName.TRAFFIC_SHAPING), None, Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)])
+    app.append([Outcome(exclude_module=ModuleName.UDP), None]) # required, no preference
+    app.append(general_concerns)
     app = list(itertools.product(*app))
 
     policySets = []
     flow_predicate = FlowPredicate(Application.ANY, FlowType.ANY)
-    for a in app: #[encryption, reliability, concerns]
-        app_policies = []
-
-        if a[0]: #encryption
-            app_policies.append(Policy(Role.APP, flow_predicate, [], Outcome(include_module=ModuleName.ENCRYPTION)))
-        if a[1]: #reliability
-            app_policies.append(Policy(Role.APP, flow_predicate, [], Outcome(exclude_module=ModuleName.UDP)))
-
-        # General concerns
-        app_policies.append(Policy(Role.APP, flow_predicate, [], Outcome(priority=a[2])))
-
-        policySets.append(app_policies)
+    for a in app:
+        policySets.append([Policy(Role.APP, flow_predicate, [], o) for o in a if o])
     return policySets
 
 def generateUserPolicySets(): 
-    user_encryption = [True, False] # required, no preference
-    user_pii_leak_detection = [True, False] # required, no preference
-    user_lte_data_usage = [True, False] # no preference, disallow
-    user_concerns = list(itertools.permutations((GeneralConcern.ENERGY, GeneralConcern.SPEED, GeneralConcern.COST)))
-    user_lte_predicate = [(None, '*'), (lambda x, y: x < y, 0.85), (lambda x, y: x > y, 0.85)]
-    user_battery_predicate = [(None, '*'), (lambda x, y: x < y, 0.15), (lambda x, y: x > y, 0.15)]
-    user = [user_encryption, user_pii_leak_detection, user_lte_data_usage, user_concerns, user_lte_predicate, user_battery_predicate]
+    user = []
+    user.append([Outcome(include_module=ModuleName.ENCRYPTION), None, Outcome(exclude_module=ModuleName.ENCRYPTION)])
+    user.append([Outcome(include_module=ModuleName.PII_LEAK_DETECTION), None, Outcome(exclude_module=ModuleName.PII_LEAK_DETECTION)])
+    user.append([Outcome(include_module=ModuleName.COMPRESSION), None, Outcome(exclude_module=ModuleName.COMPRESSION)])
+    user.append([Outcome(include_module=ModuleName.TRAFFIC_SHAPING), None, Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)])
+    user.append([None, Outcome(exclude_module=ModuleName.LTE)]) # no preference, disallow
+    user.append(general_concerns)
     user = list(itertools.product(*user))
 
+    contextpredicate = [] 
+    contextpredicate.append([ContextPredicate(ContextVar.LTE_DATA_USAGE, None, '*'), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x < y, 0.85), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x > y, 0.85)])
+    contextpredicate.append([ContextPredicate(ContextVar.BATTERY, None, '*'), ContextPredicate(ContextVar.BATTERY, lambda x, y: x < y, 0.15), ContextPredicate(ContextVar.BATTERY, lambda x, y: x > y, 0.15)])
+    contextpredicate = list(itertools.product(*contextpredicate))
+
+    flow_predicate = FlowPredicate(Application.ANY, FlowType.ANY)
 
     policySets = []
-    flow_predicate = FlowPredicate(Application.ANY, FlowType.ANY)
-    for u in user: #[encryption, pii, data_usage, concerns, lte_predicate, battery_predicate]
-        user_policies = []
-
-        context_predicates = [ContextPredicate(ContextVar.LTE_DATA_USAGE, u[4][0], u[4][1]), ContextPredicate(ContextVar.BATTERY, u[5][0], u[5][1])]
-        if u[0]: #encryption
-            user_policies.append(Policy(Role.USER, flow_predicate, context_predicates, Outcome(include_module=ModuleName.ENCRYPTION)))
-        if u[1]: #pii
-            user_policies.append(Policy(Role.USER, flow_predicate, context_predicates, Outcome(include_module=ModuleName.PII_LEAK_DETECTION)))
-        if u[2] == False: #data_usage
-            user_policies.append(Policy(Role.USER, flow_predicate, context_predicates, Outcome(exclude_module=ModuleName.LTE)))
-
-        # General concerns
-        user_policies.append(Policy(Role.USER, flow_predicate, context_predicates, Outcome(priority=u[3])))
-
-        policySets.append(user_policies)
+    for u in user: 
+        for cp in contextpredicate:
+            policySets.append([Policy(Role.USER, flow_predicate, cp, o) for o in u if o])
     return policySets
