@@ -1,8 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/pythonx
 
 import sys
 import itertools
-from generator import generator
 from policy import *
 
 def logConflicts(policies):
@@ -10,6 +9,9 @@ def logConflicts(policies):
     # tuple for every pair of policies that conflict
     policies = [p[0] for p in policies if p[1] == True]
     return list(itertools.combinations(policies, 2))
+
+def sortUserAndAppPolicies(user_policies, app_policies):
+    return user_policies[:-1] + app_policies[:-1] + [user_policies[-1]] + [app_policies[-1]]
 
 def GoodiesClass(policies, context, modules):
     relevant_policies = []
@@ -110,8 +112,8 @@ def NICClass(policies, context, modules):
 
     return (new_modules, conflicts)
 
-def returner(policies, context):
-    #policies = sortpolicies(policies) #these are already in order
+def returner(user_policies, app_policies, context):
+    policies = sortUserAndAppPolicies(user_policies, app_policies) 
     modules = []
     conflicts = []
 
