@@ -115,6 +115,12 @@ class Outcome(object):
             return "EXCLUDE %s" % self.exclude_module
         return '(%s, %s, %s)' % (self.priority)
 
+    def __eq__(self, other):
+        return (isinstance(other, self.__class__)
+            and self.include_module == other.include_module
+            and self.exclude_module == other.exclude_module
+            and self.priority == other.priority)
+
 ##
 ## POLICIES
 ##

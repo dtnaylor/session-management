@@ -1,6 +1,19 @@
 import itertools
+import numpy
+import matplotlib
 from collections import defaultdict
 from policy import *
+
+#matplotlib settings
+matplotlib.use('PDF')  # save plots as PDF
+font = {'size'   : 20}
+matplotlib.rc('font', **font)
+
+# use TrueType fonts
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+
+import matplotlib.pyplot as plt
 
 # test if a configuration is "good":
 #   1) each module receives data in the state it requires
@@ -55,6 +68,7 @@ def generate_all_possible_configurations():
         for conf in itertools.permutations(ModuleName.module_list(), i):
             yield conf
 
+
 # out of all possible data path module configurations, how many are legal
 # (as determined by test_configuration())?
 def count_legal_configurations():
@@ -67,3 +81,28 @@ def count_legal_configurations():
     print 'Num configurations (legal/total):\t%d/%d' % (legal, total)
 
 
+
+def heatmap(matrix, xlabel=None, ylabel=None, filename=None):
+    plt.pcolor(numpy.array(matrix), cmap='RdYlGn')
+    if xlabel: plt.xlabel(xlabel)
+    if ylabel: plt.ylabel(ylabel)
+    
+    # make sure no text is clipped along the boundaries
+    plt.tight_layout()
+
+    # FIXME hardcoded stuff that shouldn't be
+    plt.tick_params(\
+        axis='x',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        bottom='off',      # ticks along the bottom edge are off
+        top='off',         # ticks along the top edge are off
+        labelbottom='off') # labels along the bottom edge are off
+    plt.tick_params(\
+        axis='y',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        left='off',
+        right='off',
+        labelleft='off')
+
+
+    plt.savefig(filename)
