@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import numpy
+import numpy, sys
 from session_manager import SessionManager
 import analyze_results as ar
 from generator import *
@@ -35,6 +35,7 @@ def main():
     conflict_coordinates = []  #list of tuples (x, y) -> there is a conflict with user policy set x and app policy set y
     per_policy_configuration_counts = []
 
+    seen_modules = []
     for user_policies in userPolicySets:
         user_policy_set_index += 1
 
@@ -44,6 +45,7 @@ def main():
             per_policy_configurations = []
             for context in contextSet:
                 module_set, conflicts = returner(user_policies, app_policies, context)
+                seen_modules = list(set(module_set+seen_modules))
                 module_list = SessionManager().run(module_set)
                 configurations.append(module_list)
                 per_policy_configurations.append(module_list)
@@ -62,12 +64,15 @@ def main():
 
     print 'TEST ONE: total configurations: %d' %\
         ar.count_configurations(configurations)
+    print seen_modules
+    print len(seen_modules)
     print 'TEST TWO: mean configurations per policy set: %f' %\
         numpy.mean(per_policy_configuration_counts)
     print 'TEST THREE: illegal configurations: %d' %\
         illegal_configuration_count
     print 'TEST FIVE: conflicting app-user policy sets: %d' %\
         num_conflicting_policy_sets
+    sys.exit(-1)
 
     # plot heatmap of app-user conflicts
     # user policy sets on X axis, app policy sets on Y axis
