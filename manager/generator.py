@@ -8,8 +8,10 @@ from policy import *
 random.seed()
 general_concerns = [Outcome(priority=c) for c in itertools.permutations((GeneralConcern.ENERGY, GeneralConcern.SPEED, GeneralConcern.COST))]
 
-EXPERIMENT = "CONFLICTS"
+EXPERIMENT = "CONTEXT"
+RANDOM_USER_POLICY = True
 NUMBER_OF_APP_POLICIES = 100
+NUMBER_OF_RANDOM_USER_POLICIES = 100
 
 def generateContextSet():
     if EXPERIMENT == "USER_CONTROL":
@@ -18,8 +20,8 @@ def generateContextSet():
     if EXPERIMENT == "CONTEXT" or EXPERIMENT == "CONFLICTS":
         context = {}
         context[ContextVar.NETWORK_TYPE] = [NetworkType.WIFI, NetworkType.LTE, NetworkType.WIFI_AND_LTE]
-        context[ContextVar.LTE_DATA_USAGE] = [.1, .9]
-        context[ContextVar.BATTERY] = [.1, .9]
+        context[ContextVar.LTE_DATA_USAGE] = [.1, .2, .3, .4, .5, .6, .7, .8, .9]
+        context[ContextVar.BATTERY] = [.1, .2, .3, .4, .5, .6, .7, .8, .9]
         context[ContextVar.APPLICATION] = [Application.SPOTIFY, Application.SKYPE, Application.CHROME]
         context[ContextVar.FLOW_TYPE] = [FlowType.MULTIMEDIA, FlowType.LOW_LATENCY, FlowType.BULK]
         context[ContextVar.BW] = [100, 10000] #kbps
@@ -94,6 +96,25 @@ def generateAppPolicySets():
     if EXPERIMENT == "CONFLICTS":
         return generateNRandomPolicySets(Role.APP, NUMBER_OF_APP_POLICIES)
 
+def generateLegalOrderings():
+    goodies = [ModuleName.PII_LEAK_DETECTION, ModuleName.COMPRESSION, ModuleName.ENCRYPTION, ModuleName.TRAFFIC_SHAPING]
+    goodies_combinations = []
+    for i in xrange(len(goodies)+1):
+        goodies_combinations += list(itertools.combinations(goodies, i))
+    transport = [ModuleName.TCP, ModuleName.UDP, ModuleName.MPTCP]
+    network = [ModuleName.IPV4]
+    nic = [ModuleName.WIFI, ModuleName.LTE, ModuleName.WIFI_AND_LTE]
+    orderings = list(itertools.product(*[goodies_combinations, transport, network, nic]))
+    orderings = [list(a)+[b,c,d] for (a,b,c,d) in orderings]
+    orderings = [o for o in orderings if not (ModuleName.MPTCP in o and ModuleName.WIFI_AND_LTE not in o)]
+    orderings = [o for o in orderings if not (ModuleName.MPTCP not in o and ModuleName.WIFI_AND_LTE in o)]
+    for i in xrange(len(orderings)):
+        if ModuleName.TRAFFIC_SHAPING in orderings[i]:
+            o = orderings[i]
+            loc = o.index(ModuleName.TRAFFIC_SHAPING)
+            orderings[i] = o[:loc]+[o[loc+1]]+[o[loc]]+o[loc+2:]
+    return orderings
+
 def generateUserPolicySets(): 
     if EXPERIMENT == "USER_CONTROL":
         user = []
@@ -112,15 +133,18 @@ def generateUserPolicySets():
         return policySets
 
     if EXPERIMENT == "CONTEXT" or EXPERIMENT == "CONFLICTS":
+        if RANDOM_USER_POLICY:
+            return generateNRandomPolicySets(Role.USER, NUMBER_OF_RANDOM_USER_POLICIES)
+
         policySet = []
 
         #Apps
-        policySet.append(Policy(Role.USER,FlowPredicate(Application.SPOTIFY, FlowType.ANY), [], Outcome(exclude_module=ModuleName.LTE)))
-        policySet.append(Policy(Role.USER,FlowPredicate(Application.SKYPE, FlowType.ANY), [], Outcome(include_module=ModuleName.PII_LEAK_DETECTION)))
-        policySet.append(Policy(Role.USER,FlowPredicate(Application.CHROME, FlowType.ANY), [], Outcome(include_module=ModuleName.ENCRYPTION)))
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.SPOTIFY, FlowType.ANY), [], Outcome(include_module=ModuleName.TCP)))
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.SKYPE, FlowType.ANY), [], Outcome(include_module=ModuleName.ENCRYPTION)))
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.CHROME, FlowType.ANY), [], Outcome(include_module=ModuleName.PII_LEAK_DETECTION)))
         
         #FlowTypes
-        policySet.append(Policy(Role.USER,FlowPredicate(Application.ANY, FlowType.MULTIMEDIA), [], Outcome(include_module=ModuleName.TCP)))
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.ANY, FlowType.MULTIMEDIA), [], Outcome(exclude_module=ModuleName.LTE)))
         policySet.append(Policy(Role.USER,FlowPredicate(Application.ANY, FlowType.LOW_LATENCY), [], Outcome(include_module=ModuleName.UDP)))
         policySet.append(Policy(Role.USER,FlowPredicate(Application.ANY, FlowType.BULK), [], Outcome(include_module=ModuleName.MPTCP)))
 

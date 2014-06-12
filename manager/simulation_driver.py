@@ -28,9 +28,11 @@ def main():
     contextSet = generateContextSet()
     userPolicySets = generateUserPolicySets()
     appPolicySets = generateAppPolicySets()
+    legalOrderings = generateLegalOrderings()
 
     illegal_configuration_count = 0
     num_conflicting_policy_sets = 0
+    num_intraconflicting_policy_sets = []
     user_policy_set_index = 0
     app_policy_set_index = 0
     conflict_coordinates = []  #list of tuples (x, y) -> there is a conflict with user policy set x and app policy set y
@@ -39,6 +41,8 @@ def main():
     seen_modules = []
     conflict_accum = defaultdict(int)
     print len(userPolicySets)
+    print len(appPolicySets)
+    print len(contextSet)
     for user_policies in userPolicySets:
         user_policy_set_index += 1
 
@@ -58,11 +62,15 @@ def main():
                     illegal_configuration_count += 1
 
                 # count number of app-user conflicts
+                nips = 0
                 conflict_accum[tuple(sorted(context.items()))] += len(conflicts)
                 for conflict in conflicts:
                     if conflict[0].role != conflict[1].role:
                         num_conflicting_policy_sets += 1
                         conflict_coordinates.append((user_policy_set_index, app_policy_set_index))
+                    else: #intraconflict
+                        nips += 1
+                num_intraconflicting_policy_sets.append(nips)
 
             per_policy_configuration_counts.append(ar.count_configurations(per_policy_configurations))
 
@@ -71,6 +79,13 @@ def main():
 
     print 'TEST ONE: total configurations: %d' %\
         ar.count_configurations(configurations)
+
+    totally_not_legal = []
+    for c in configurations:
+        if c not in legalOrderings:
+            totally_not_legal.append(c)
+            print c
+    print len(totally_not_legal)
 #    print seen_modules
 #    print len(seen_modules)
     print 'TEST TWO: mean configurations per policy set: %f' %\
@@ -79,8 +94,12 @@ def main():
         illegal_configuration_count
     print 'TEST FIVE: conflicting app-user policy sets: %d' %\
         num_conflicting_policy_sets
-    print sorted(conflict_accum.values())
-    print len(appPolicySets)
+    print 'TEST FIVE: mean conflicting app-app/user-user policy sets: %d (%d, %d)' %\
+        (numpy.mean(num_intraconflicting_policy_sets),numpy.min(num_intraconflicting_policy_sets), numpy.max(num_intraconflicting_policy_sets))
+#         (float(num_intraconflicting_policy_sets) / (len(userPolicySets) * \
+#                                                        len(appPolicySets) * \
+#                                                        len(contextSet)))
+#     print sorted(conflict_accum.values())
     sys.exit(-1)
 
     # plot heatmap of app-user conflicts

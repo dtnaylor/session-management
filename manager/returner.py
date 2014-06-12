@@ -4,6 +4,8 @@ import sys
 import itertools
 from policy import *
 
+INTRACONFLICTS_ENABLED = True
+
 def logGoodiesConflicts(policies):
     # check that the two policies to consider are both the same module
     # and that they are include v exclude
@@ -12,7 +14,7 @@ def logGoodiesConflicts(policies):
     conflicts = []
     for (p0, p1) in possible_conflicts:
         if p0.outcome.include_module == p1.outcome.exclude_module or p0.outcome.exclude_module == p1.outcome.include_module:
-            if p0.role != p1.role:
+            if INTRACONFLICTS_ENABLED or p0.role != p1.role:
                 conflicts.append((p0, p1))
     return conflicts
 
@@ -21,7 +23,9 @@ def logConflicts(policies):
     # tuple for every pair of policies that conflict
     policies = [p[0] for p in policies if p[1] == True]
     conflicts = list(itertools.combinations(policies, 2))
-    conflicts = [(c0,c1) for (c0,c1) in conflicts if c0.role != c1.role]
+    conflicts = [(c0,c1) for (c0,c1) in conflicts if c0.outcome.include_module != c1.outcome.include_module]
+    if not INTRACONFLICTS_ENABLED:
+        conflicts = [(c0,c1) for (c0,c1) in conflicts if c0.role != c1.role]
     return conflicts
 
 def sortUserAndAppPolicies(user_policies, app_policies):
@@ -79,6 +83,11 @@ def TransportClass(policies, context, modules):
             if checkPredicate(policy, context):
                 relevant_policies.append((policy, False))
     conflicts = logConflicts(relevant_policies)
+
+    if not relevant_policies:
+        if ModuleName.WIFI_AND_LTE in modules:
+            return([ModuleName.MPTCP], conflicts)
+        return ([ModuleName.TCP], conflicts)
     used_policy = relevant_policies[0][0]
 
     # Always return MPTCP if using WIFI and LTE
@@ -87,7 +96,10 @@ def TransportClass(policies, context, modules):
         new_modules.append(ModuleName.MPTCP)
     else:
         if used_policy.outcome.include_module:
-            new_modules.append(used_policy.outcome.include_module)
+            if ModuleName.WIFI_AND_LTE not in modules and used_policy.outcome.include_module == ModuleName.MPTCP:
+                new_modules.append(ModuleName.TCP)
+            else:
+                new_modules.append(used_policy.outcome.include_module)
         elif used_policy.outcome.exclude_module == ModuleName.TCP:
             new_modules.append(ModuleName.UDP)
         elif used_policy.outcome.exclude_module == ModuleName.UDP:
@@ -120,6 +132,9 @@ def NICClass(policies, context, modules):
             if checkPredicate(policy, context):
                 relevant_policies.append((policy, False))
     conflicts = logConflicts(relevant_policies)
+
+    if not relevant_policies:
+        return ([ModuleName.WIFI], conflicts)
     used_policy = relevant_policies[0][0]
 
     new_modules = []
