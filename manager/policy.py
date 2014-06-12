@@ -25,7 +25,9 @@ class FlowPredicate(object):
         self.flow_type = flow_type
 
     # test if supplied app and flow_type match this predicate
-    def test(self, app, flow_type):
+    def test(self, context):
+        app = context[ContextVar.APPLICATION]
+        flow_type = context[ContextVar.FLOW_TYPE]
         app_match = True if self.app == Application.ANY else app == self.app
         type_match = True if self.flow_type == FlowType.ANY else\
             flow_type == self.flow_type

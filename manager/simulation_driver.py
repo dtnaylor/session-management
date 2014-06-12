@@ -5,6 +5,7 @@ from session_manager import SessionManager
 import analyze_results as ar
 from generator import *
 from returner import returner
+from collections import defaultdict
 
 def main():
     
@@ -24,9 +25,9 @@ def main():
     # policy sets on one axis and admin policy sets on the other: intersection
     # is red if conflict, green if not
     configurations = []
-    contextSet = [[]] #generateContextSet()
+    contextSet = generateContextSet()
     userPolicySets = generateUserPolicySets()
-    appPolicySets = [[]] #generateAppPolicySets()
+    appPolicySets = generateAppPolicySets()
 
     illegal_configuration_count = 0
     num_conflicting_policy_sets = 0
@@ -36,6 +37,7 @@ def main():
     per_policy_configuration_counts = []
 
     seen_modules = []
+    conflict_accum = defaultdict(int)
     print len(userPolicySets)
     for user_policies in userPolicySets:
         user_policy_set_index += 1
@@ -56,6 +58,7 @@ def main():
                     illegal_configuration_count += 1
 
                 # count number of app-user conflicts
+                conflict_accum[tuple(sorted(context.items()))] += len(conflicts)
                 for conflict in conflicts:
                     if conflict[0].role != conflict[1].role:
                         num_conflicting_policy_sets += 1
@@ -63,16 +66,21 @@ def main():
 
             per_policy_configuration_counts.append(ar.count_configurations(per_policy_configurations))
 
+    for c in conflict_accum.keys():
+        conflict_accum[c] /= len(appPolicySets)
+
     print 'TEST ONE: total configurations: %d' %\
         ar.count_configurations(configurations)
-    print seen_modules
-    print len(seen_modules)
+#    print seen_modules
+#    print len(seen_modules)
     print 'TEST TWO: mean configurations per policy set: %f' %\
         numpy.mean(per_policy_configuration_counts)
     print 'TEST THREE: illegal configurations: %d' %\
         illegal_configuration_count
     print 'TEST FIVE: conflicting app-user policy sets: %d' %\
         num_conflicting_policy_sets
+    print sorted(conflict_accum.values())
+    print len(appPolicySets)
     sys.exit(-1)
 
     # plot heatmap of app-user conflicts

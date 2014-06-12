@@ -12,14 +12,17 @@ def logGoodiesConflicts(policies):
     conflicts = []
     for (p0, p1) in possible_conflicts:
         if p0.outcome.include_module == p1.outcome.exclude_module or p0.outcome.exclude_module == p1.outcome.include_module:
-            conflicts.append((p0, p1))
+            if p0.role != p1.role:
+                conflicts.append((p0, p1))
     return conflicts
 
 def logConflicts(policies):
-    # is this a user-user conflict, or a user-app conflict?
+    # is this a user-user conflict, or a user-app conflict? Only will be user-app?
     # tuple for every pair of policies that conflict
     policies = [p[0] for p in policies if p[1] == True]
-    return list(itertools.combinations(policies, 2))
+    conflicts = list(itertools.combinations(policies, 2))
+    conflicts = [(c0,c1) for (c0,c1) in conflicts if c0.role != c1.role]
+    return conflicts
 
 def sortUserAndAppPolicies(user_policies, app_policies):
     if app_policies:
@@ -27,14 +30,25 @@ def sortUserAndAppPolicies(user_policies, app_policies):
     else:
         return user_policies
 
+def checkPredicate(policy, context):
+    #check flow predicate
+    result = policy.flow_predicate.test(context)
+
+    #check context prediates
+    for p in policy.context_predicates:
+        result &= p.test(context)
+    return result
+
 def GoodiesClass(policies, context, modules):
     relevant_policies = []
     relevant_modules = set([ModuleName.ENCRYPTION, ModuleName.COMPRESSION, ModuleName.PII_LEAK_DETECTION, ModuleName.TRAFFIC_SHAPING])
     for policy in policies:
         if relevant_modules.intersection(set([policy.outcome.include_module, policy.outcome.exclude_module])):
-            relevant_policies.append((policy, True))
+            if checkPredicate(policy, context):
+                relevant_policies.append((policy, True))
         elif policy.outcome.priority != None:
-            relevant_policies.append((policy, False))
+            if checkPredicate(policy, context):
+                relevant_policies.append((policy, False))
     conflicts = logGoodiesConflicts(relevant_policies) 
 
     # go through all policies and add the modules:
@@ -59,9 +73,11 @@ def TransportClass(policies, context, modules):
     relevant_modules = set([ModuleName.TCP, ModuleName.UDP, ModuleName.MPTCP])
     for policy in policies:
         if relevant_modules.intersection(set([policy.outcome.include_module, policy.outcome.exclude_module])):
-            relevant_policies.append((policy, True))
+            if checkPredicate(policy, context):
+                relevant_policies.append((policy, True))
         elif policy.outcome.priority != None:
-            relevant_policies.append((policy, False))
+            if checkPredicate(policy, context):
+                relevant_policies.append((policy, False))
     conflicts = logConflicts(relevant_policies)
     used_policy = relevant_policies[0][0]
 
@@ -98,9 +114,11 @@ def NICClass(policies, context, modules):
     for policy in policies:
         #print policy
         if relevant_modules.intersection(set([policy.outcome.include_module, policy.outcome.exclude_module])):
-            relevant_policies.append((policy, True))
+            if checkPredicate(policy, context):
+                relevant_policies.append((policy, True))
         elif policy.outcome.priority != None:
-            relevant_policies.append((policy, False))
+            if checkPredicate(policy, context):
+                relevant_policies.append((policy, False))
     conflicts = logConflicts(relevant_policies)
     used_policy = relevant_policies[0][0]
 

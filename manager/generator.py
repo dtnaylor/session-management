@@ -2,65 +2,149 @@
 
 import sys
 import itertools
+import random
 from policy import *
 
+random.seed()
 general_concerns = [Outcome(priority=c) for c in itertools.permutations((GeneralConcern.ENERGY, GeneralConcern.SPEED, GeneralConcern.COST))]
 
-def generateContextSet():
-    context = {}
-    context[ContextVar.NETWORK_TYPE] = [NetworkType.WIFI, NetworkType.LTE, NetworkType.WIFI_AND_LTE]
-    context[ContextVar.LTE_DATA_USAGE] = [.1, .9]
-    context[ContextVar.BATTERY] = [.1, .9]
-    context[ContextVar.APPLICATION] = [Application.SPOTIFY, Application.SKYPE, Application.CHROME]
-    context[ContextVar.FLOW_TYPE] = [FlowType.MULTIMEDIA, FlowType.LOW_LATENCY, FlowType.BULK]
+EXPERIMENT = "CONFLICTS"
+NUMBER_OF_APP_POLICIES = 100
 
-    (keys,values) = zip(*context.items())
-    context_list = list(itertools.product(*values))
-    context = []
-    for c in context_list:
-        context.append(dict(zip(keys,c)))
-    return context
+def generateContextSet():
+    if EXPERIMENT == "USER_CONTROL":
+        return [[]]
+
+    if EXPERIMENT == "CONTEXT" or EXPERIMENT == "CONFLICTS":
+        context = {}
+        context[ContextVar.NETWORK_TYPE] = [NetworkType.WIFI, NetworkType.LTE, NetworkType.WIFI_AND_LTE]
+        context[ContextVar.LTE_DATA_USAGE] = [.1, .9]
+        context[ContextVar.BATTERY] = [.1, .9]
+        context[ContextVar.APPLICATION] = [Application.SPOTIFY, Application.SKYPE, Application.CHROME]
+        context[ContextVar.FLOW_TYPE] = [FlowType.MULTIMEDIA, FlowType.LOW_LATENCY, FlowType.BULK]
+        context[ContextVar.BW] = [100, 10000] #kbps
+        context[ContextVar.LATENCY] = [30, 1000] #ms
+
+        (keys,values) = zip(*context.items())
+        context_list = list(itertools.product(*values))
+        context = []
+        for c in context_list:
+            context.append(dict(zip(keys,c)))
+        return context
+
+def generateRandomOutcome():
+    # pick a module
+    modules = ModuleName.module_list()
+    modules.remove('IPv6')
+    modules.remove('IPv4')
+    module = random.choice(modules)
+
+    if random.random() > 0.5: # going to include module
+        return Outcome(include_module = module)
+    else: # exclude
+        return Outcome(exclude_module = module)
+        
+
+def generateNRandomPolicySets(role, n):
+    policySets = []
+    for i in xrange(n):
+        policy = []
+        if role == Role.USER:
+            #Apps
+            policy.append(Policy(role,FlowPredicate(Application.SPOTIFY, FlowType.ANY), [], generateRandomOutcome()))
+            policy.append(Policy(role,FlowPredicate(Application.SKYPE, FlowType.ANY), [], generateRandomOutcome()))
+            policy.append(Policy(role,FlowPredicate(Application.CHROME, FlowType.ANY), [], generateRandomOutcome()))
+        
+        #FlowTypes
+        policy.append(Policy(role,FlowPredicate(Application.ANY, FlowType.MULTIMEDIA), [], generateRandomOutcome()))
+        policy.append(Policy(role,FlowPredicate(Application.ANY, FlowType.LOW_LATENCY), [], generateRandomOutcome()))
+        policy.append(Policy(role,FlowPredicate(Application.ANY, FlowType.BULK), [], generateRandomOutcome()))
+
+        generic_flow = FlowPredicate(Application.ANY, FlowType.ANY)
+
+        #Net Type
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.NETWORK_TYPE, lambda x, y: x == y, NetworkType.WIFI)], generateRandomOutcome()))
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.NETWORK_TYPE, lambda x, y: x == y, NetworkType.LTE)], generateRandomOutcome()))
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.NETWORK_TYPE, lambda x, y: x == y, NetworkType.WIFI_AND_LTE)], generateRandomOutcome()))
+
+        #data usage
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x < y, 0.8)], generateRandomOutcome()))
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x > y, 0.8)], generateRandomOutcome()))
+
+        #battery
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.BATTERY, lambda x, y: x < y, 0.2)], generateRandomOutcome()))
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.BATTERY, lambda x, y: x > y, 0.2)], generateRandomOutcome()))
+        
+        #bw
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.BW, lambda x, y: x > y, 1000)], generateRandomOutcome()))
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.BW, lambda x, y: x < y, 1000)], generateRandomOutcome()))
+        
+        #latency
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.LATENCY, lambda x, y: x > y, 100)], generateRandomOutcome()))
+        policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.LATENCY, lambda x, y: x < y, 100)], generateRandomOutcome()))
+
+        policySets.append(policy)
+    return policySets
+        
 
 def generateAppPolicySets():
-    app = []
-    app.append([Outcome(include_module=ModuleName.ENCRYPTION), None, Outcome(exclude_module=ModuleName.ENCRYPTION)])
-#     app.append([Outcome(include_module=ModuleName.PII_LEAK_DETECTION), None, Outcome(exclude_module=ModuleName.PII_LEAK_DETECTION)])
-#     app.append([Outcome(include_module=ModuleName.COMPRESSION), None, Outcome(exclude_module=ModuleName.COMPRESSION)])
-#     app.append([Outcome(include_module=ModuleName.TRAFFIC_SHAPING), None, Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)])
-    app.append([Outcome(exclude_module=ModuleName.UDP), None]) # required, no preference
-    app.append(general_concerns)
-    app = list(itertools.product(*app))
+    if EXPERIMENT == "USER_CONTROL" or EXPERIMENT == "CONTEXT":
+        return [[]]
 
-    policySets = []
-    flow_predicate = FlowPredicate(Application.ANY, FlowType.ANY)
-    for a in app:
-        policySets.append([Policy(Role.APP, flow_predicate, [], o) for o in a if o])
-    return policySets
+    if EXPERIMENT == "CONFLICTS":
+        return generateNRandomPolicySets(Role.APP, NUMBER_OF_APP_POLICIES)
 
 def generateUserPolicySets(): 
-    user = []
-    testing = [ModuleName.ENCRYPTION, ModuleName.PII_LEAK_DETECTION, ModuleName.COMPRESSION, ModuleName.TRAFFIC_SHAPING, ModuleName.TCP, ModuleName.UDP, ModuleName.MPTCP, ModuleName.IPV4, ModuleName.WIFI, ModuleName.LTE, ModuleName.WIFI_AND_LTE]
-    for m in testing:
-        user.append([Outcome(include_module=m), None, Outcome(exclude_module=m)])
+    if EXPERIMENT == "USER_CONTROL":
+        user = []
+        testing = [ModuleName.ENCRYPTION, ModuleName.PII_LEAK_DETECTION, ModuleName.COMPRESSION, ModuleName.TRAFFIC_SHAPING, ModuleName.TCP, ModuleName.UDP, ModuleName.MPTCP, ModuleName.IPV4, ModuleName.WIFI, ModuleName.LTE, ModuleName.WIFI_AND_LTE]
+        for m in testing:
+            user.append([Outcome(include_module=m), None, Outcome(exclude_module=m)])
 
-#     user.append([Outcome(include_module=ModuleName.ENCRYPTION), None, Outcome(exclude_module=ModuleName.ENCRYPTION)])
-#     user.append([Outcome(include_module=ModuleName.PII_LEAK_DETECTION), None, Outcome(exclude_module=ModuleName.PII_LEAK_DETECTION)])
-#     user.append([Outcome(include_module=ModuleName.COMPRESSION), None, Outcome(exclude_module=ModuleName.COMPRESSION)])
-#     user.append([Outcome(include_module=ModuleName.TRAFFIC_SHAPING), None, Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)])
-#     user.append([None, Outcome(exclude_module=ModuleName.LTE)]) # no preference, disallow
+        user.append(general_concerns)
+        user = list(itertools.product(*user))
 
-    user.append(general_concerns)
-    user = list(itertools.product(*user))
+        flow_predicate = FlowPredicate(Application.ANY, FlowType.ANY)
 
-    contextpredicate = [[]] 
-#     contextpredicate.append([ContextPredicate(ContextVar.LTE_DATA_USAGE, None, '*'), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x < y, 0.85), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x > y, 0.85)])
-#     contextpredicate.append([ContextPredicate(ContextVar.BATTERY, None, '*'), ContextPredicate(ContextVar.BATTERY, lambda x, y: x < y, 0.15), ContextPredicate(ContextVar.BATTERY, lambda x, y: x > y, 0.15)])
-#     contextpredicate = list(itertools.product(*contextpredicate))
+        policySets = []
+        for u in user: 
+            policySets.append([Policy(Role.USER, flow_predicate, [], o) for o in u if o])
+        return policySets
 
-    flow_predicate = FlowPredicate(Application.ANY, FlowType.ANY)
+    if EXPERIMENT == "CONTEXT" or EXPERIMENT == "CONFLICTS":
+        policySet = []
 
-    policySets = []
-    for u in user: 
-        for cp in contextpredicate:
-            policySets.append([Policy(Role.USER, flow_predicate, cp, o) for o in u if o])
-    return policySets
+        #Apps
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.SPOTIFY, FlowType.ANY), [], Outcome(exclude_module=ModuleName.LTE)))
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.SKYPE, FlowType.ANY), [], Outcome(include_module=ModuleName.PII_LEAK_DETECTION)))
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.CHROME, FlowType.ANY), [], Outcome(include_module=ModuleName.ENCRYPTION)))
+        
+        #FlowTypes
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.ANY, FlowType.MULTIMEDIA), [], Outcome(include_module=ModuleName.TCP)))
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.ANY, FlowType.LOW_LATENCY), [], Outcome(include_module=ModuleName.UDP)))
+        policySet.append(Policy(Role.USER,FlowPredicate(Application.ANY, FlowType.BULK), [], Outcome(include_module=ModuleName.MPTCP)))
+
+        generic_flow = FlowPredicate(Application.ANY, FlowType.ANY)
+
+        #Net Type
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.NETWORK_TYPE, lambda x, y: x == y, NetworkType.WIFI)], Outcome(include_module=ModuleName.ENCRYPTION)))
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.NETWORK_TYPE, lambda x, y: x == y, NetworkType.LTE)], Outcome(include_module=ModuleName.TRAFFIC_SHAPING)))
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.NETWORK_TYPE, lambda x, y: x == y, NetworkType.WIFI_AND_LTE)], Outcome(include_module=ModuleName.MPTCP)))
+
+        #data usage
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x < y, 0.8)], Outcome(include_module=ModuleName.LTE)))
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x > y, 0.8)], Outcome(include_module=ModuleName.COMPRESSION)))
+
+        #battery
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.BATTERY, lambda x, y: x < y, 0.2)], Outcome(exclude_module=ModuleName.LTE)))
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.BATTERY, lambda x, y: x > y, 0.2)], Outcome(include_module=ModuleName.WIFI_AND_LTE)))
+        
+        #bw
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.BW, lambda x, y: x > y, 1000)], Outcome(exclude_module=ModuleName.COMPRESSION)))
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.BW, lambda x, y: x < y, 1000)], Outcome(include_module=ModuleName.COMPRESSION)))
+        
+        #latency
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.LATENCY, lambda x, y: x > y, 100)], Outcome(include_module=ModuleName.COMPRESSION)))
+        policySet.append(Policy(Role.USER, generic_flow, [ContextPredicate(ContextVar.LATENCY, lambda x, y: x < y, 100)], Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)))
+
+        return [policySet]
