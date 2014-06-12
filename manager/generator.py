@@ -24,9 +24,9 @@ def generateContextSet():
 def generateAppPolicySets():
     app = []
     app.append([Outcome(include_module=ModuleName.ENCRYPTION), None, Outcome(exclude_module=ModuleName.ENCRYPTION)])
-    app.append([Outcome(include_module=ModuleName.PII_LEAK_DETECTION), None, Outcome(exclude_module=ModuleName.PII_LEAK_DETECTION)])
-    app.append([Outcome(include_module=ModuleName.COMPRESSION), None, Outcome(exclude_module=ModuleName.COMPRESSION)])
-    app.append([Outcome(include_module=ModuleName.TRAFFIC_SHAPING), None, Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)])
+#     app.append([Outcome(include_module=ModuleName.PII_LEAK_DETECTION), None, Outcome(exclude_module=ModuleName.PII_LEAK_DETECTION)])
+#     app.append([Outcome(include_module=ModuleName.COMPRESSION), None, Outcome(exclude_module=ModuleName.COMPRESSION)])
+#     app.append([Outcome(include_module=ModuleName.TRAFFIC_SHAPING), None, Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)])
     app.append([Outcome(exclude_module=ModuleName.UDP), None]) # required, no preference
     app.append(general_concerns)
     app = list(itertools.product(*app))
@@ -39,18 +39,25 @@ def generateAppPolicySets():
 
 def generateUserPolicySets(): 
     user = []
-    user.append([Outcome(include_module=ModuleName.ENCRYPTION), None, Outcome(exclude_module=ModuleName.ENCRYPTION)])
-    user.append([Outcome(include_module=ModuleName.PII_LEAK_DETECTION), None, Outcome(exclude_module=ModuleName.PII_LEAK_DETECTION)])
-    user.append([Outcome(include_module=ModuleName.COMPRESSION), None, Outcome(exclude_module=ModuleName.COMPRESSION)])
-    user.append([Outcome(include_module=ModuleName.TRAFFIC_SHAPING), None, Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)])
-    user.append([None, Outcome(exclude_module=ModuleName.LTE)]) # no preference, disallow
-    user.append(general_concerns)
-    user = list(itertools.product(*user))
+    testing = [ModuleName.ENCRYPTION, ModuleName.PII_LEAK_DETECTION, ModuleName.COMPRESSION, ModuleName.TRAFFIC_SHAPING, ModuleName.TCP, ModuleName.UDP, ModuleName.MPTCP, ModuleName.IPV4, ModuleName.WIFI, ModuleName.LTE, ModuleName.WIFI_AND_LTE]
+    for m in testing:
+        user.append([Outcome(include_module=m), None, Outcome(exclude_module=m)])
 
-    contextpredicate = [] 
-    contextpredicate.append([ContextPredicate(ContextVar.LTE_DATA_USAGE, None, '*'), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x < y, 0.85), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x > y, 0.85)])
-    contextpredicate.append([ContextPredicate(ContextVar.BATTERY, None, '*'), ContextPredicate(ContextVar.BATTERY, lambda x, y: x < y, 0.15), ContextPredicate(ContextVar.BATTERY, lambda x, y: x > y, 0.15)])
-    contextpredicate = list(itertools.product(*contextpredicate))
+#     user.append([Outcome(include_module=ModuleName.ENCRYPTION), None, Outcome(exclude_module=ModuleName.ENCRYPTION)])
+#     user.append([Outcome(include_module=ModuleName.PII_LEAK_DETECTION), None, Outcome(exclude_module=ModuleName.PII_LEAK_DETECTION)])
+#     user.append([Outcome(include_module=ModuleName.COMPRESSION), None, Outcome(exclude_module=ModuleName.COMPRESSION)])
+#     user.append([Outcome(include_module=ModuleName.TRAFFIC_SHAPING), None, Outcome(exclude_module=ModuleName.TRAFFIC_SHAPING)])
+#     user.append([None, Outcome(exclude_module=ModuleName.LTE)]) # no preference, disallow
+
+    user.append(general_concerns)
+    print 'going'
+    user = list(itertools.product(*user))
+    print 'done'
+
+    contextpredicate = [[]] 
+#     contextpredicate.append([ContextPredicate(ContextVar.LTE_DATA_USAGE, None, '*'), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x < y, 0.85), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x > y, 0.85)])
+#     contextpredicate.append([ContextPredicate(ContextVar.BATTERY, None, '*'), ContextPredicate(ContextVar.BATTERY, lambda x, y: x < y, 0.15), ContextPredicate(ContextVar.BATTERY, lambda x, y: x > y, 0.15)])
+#     contextpredicate = list(itertools.product(*contextpredicate))
 
     flow_predicate = FlowPredicate(Application.ANY, FlowType.ANY)
 

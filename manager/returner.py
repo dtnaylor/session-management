@@ -22,7 +22,10 @@ def logConflicts(policies):
     return list(itertools.combinations(policies, 2))
 
 def sortUserAndAppPolicies(user_policies, app_policies):
-    return user_policies[:-1] + app_policies[:-1] + [user_policies[-1]] + [app_policies[-1]]
+    if app_policies:
+        return user_policies[:-1] + app_policies[:-1] + [user_policies[-1]] + [app_policies[-1]]
+    else:
+        return user_policies
 
 def GoodiesClass(policies, context, modules):
     relevant_policies = []
@@ -77,7 +80,7 @@ def TransportClass(policies, context, modules):
             new_modules.append(ModuleName.UDP)
         elif used_policy.outcome.priority[0] == GeneralConcern.SPEED:
             #UDP if type is low-latency, else TCP
-            if context[ContextVar.FLOW_TYPE] == FlowType.LOW_LATENCY:
+            if ContextVar.FLOW_TYPE in context and context[ContextVar.FLOW_TYPE] == FlowType.LOW_LATENCY:
                 new_modules.append(ModuleName.UDP)
             else: new_modules.append(ModuleName.TCP)
         elif used_policy.outcome.priority[0] == GeneralConcern.ENERGY:
@@ -108,11 +111,14 @@ def NICClass(policies, context, modules):
         new_modules.append(ModuleName.LTE)
     elif used_policy.outcome.exclude_module == ModuleName.LTE:
         new_modules.append(ModuleName.WIFI)
+    elif used_policy.outcome.exclude_module == ModuleName.WIFI_AND_LTE:
+        # This is actually an error...
+        new_modules.append(ModuleName.LTE)
     elif used_policy.outcome.priority[0] == GeneralConcern.SPEED:
         #wifi if type is low-latency, bulk is WIFI+LTE, else LTE
-        if context[ContextVar.FLOW_TYPE] == FlowType.LOW_LATENCY:
+        if ContextVar.FLOW_TYPE in context and context[ContextVar.FLOW_TYPE] == FlowType.LOW_LATENCY:
             new_modules.append(ModuleName.WIFI)
-        elif context[ContextVar.FLOW_TYPE] == FlowType.BULK:
+        elif ContextVar.FLOW_TYPE in context and context[ContextVar.FLOW_TYPE] == FlowType.BULK:
             new_modules.append(ModuleName.WIFI_AND_LTE)
         else: new_modules.append(ModuleName.LTE)
     elif used_policy.outcome.priority[0] == GeneralConcern.ENERGY:
