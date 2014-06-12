@@ -88,7 +88,7 @@ def heatmap(matrix, xlabel=None, ylabel=None, filename=None):
     if ylabel: plt.ylabel(ylabel)
     
     # make sure no text is clipped along the boundaries
-    plt.tight_layout()
+    #plt.tight_layout()
 
     # FIXME hardcoded stuff that shouldn't be
     plt.tick_params(\

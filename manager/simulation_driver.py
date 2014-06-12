@@ -86,6 +86,7 @@ def main():
     print 'Generating plot...'
     ar.heatmap(matrix, xlabel='User Policies', ylabel='App Policies',\
         filename='app-user-conflicts.pdf')
+    print 'Done plotting.'
 
 
 
