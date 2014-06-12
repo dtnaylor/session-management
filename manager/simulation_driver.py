@@ -25,9 +25,7 @@ def main():
     # is red if conflict, green if not
     configurations = []
     contextSet = [[]] #generateContextSet()
-    print 'start'
     userPolicySets = generateUserPolicySets()
-    print 'here'
     appPolicySets = [[]] #generateAppPolicySets()
 
     illegal_configuration_count = 0
@@ -38,6 +36,7 @@ def main():
     per_policy_configuration_counts = []
 
     seen_modules = []
+    print len(userPolicySets)
     for user_policies in userPolicySets:
         user_policy_set_index += 1
 
@@ -46,7 +45,6 @@ def main():
 
             per_policy_configurations = []
             for context in contextSet:
-                print len(user_policies)
                 module_set, conflicts = returner(user_policies, app_policies, context)
                 seen_modules = list(set(module_set+seen_modules))
                 module_list = SessionManager().run(module_set)

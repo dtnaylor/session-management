@@ -50,9 +50,7 @@ def generateUserPolicySets():
 #     user.append([None, Outcome(exclude_module=ModuleName.LTE)]) # no preference, disallow
 
     user.append(general_concerns)
-    print 'going'
     user = list(itertools.product(*user))
-    print 'done'
 
     contextpredicate = [[]] 
 #     contextpredicate.append([ContextPredicate(ContextVar.LTE_DATA_USAGE, None, '*'), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x < y, 0.85), ContextPredicate(ContextVar.LTE_DATA_USAGE, lambda x, y: x > y, 0.85)])
