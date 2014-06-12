@@ -8,14 +8,14 @@ from policy import *
 random.seed()
 general_concerns = [Outcome(priority=c) for c in itertools.permutations((GeneralConcern.ENERGY, GeneralConcern.SPEED, GeneralConcern.COST))]
 
-EXPERIMENT = "CONTEXT"
+EXPERIMENT = "USER_CONTROL"
 RANDOM_USER_POLICY = True
 NUMBER_OF_APP_POLICIES = 100
 NUMBER_OF_RANDOM_USER_POLICIES = 100
 
 def generateContextSet():
     if EXPERIMENT == "USER_CONTROL":
-        return [[]]
+        return [{}]
 
     if EXPERIMENT == "CONTEXT" or EXPERIMENT == "CONFLICTS":
         context = {}
