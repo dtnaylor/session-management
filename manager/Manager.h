@@ -19,11 +19,10 @@
 
 #define BIT_ARRAY_LEN 1 // one byte
 
-using namespace std;
-
 #include <unordered_map>
 #include <list>
 #include "DataPathModule.h"
+#include "CompressionModule.h"
 
 const char kCompression = 128;
 

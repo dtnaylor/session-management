@@ -27,8 +27,8 @@ int Manager::instantiateModulesFromBitArray(int fd, char *bitarray, int modules_
     }
 
     for(int i = 0; i < modules_len; i++) {
-        if (modules[i] & kCompression) {
-            module_table[fd].push_back(new CompressionModule)
+        if (bitarray[i] & kCompression) {
+            module_table[fd]->push_back(new CompressionModule);
         }
     }
     return 0;
@@ -47,10 +47,11 @@ int Manager::getBitArrayLen() {
 
 int Manager::send(int fd, char *buf, int n) {
     int len = 0;
+    size_t datalen = (size_t)n;
     if (module_table.find(fd) != module_table.end()) {
-        for(std::list<DataPathModule>::iterator it=module_table[fd].begin();
-            it != module_table[fd].end(); ++it) {
-            len = module->data_out(buf, n);
+        for(std::list<DataPathModule *>::iterator it=module_table[fd]->begin();
+            it != module_table[fd]->end(); ++it) {
+            len = (*it)->data_out(buf, &datalen, &datalen);
         }
     }
     return len;
@@ -59,9 +60,9 @@ int Manager::send(int fd, char *buf, int n) {
 int Manager::recv(int fd, char *buf, int input_len, int output_len) {
     int len = 0;
     if (module_table.find(fd) != module_table.end()) {
-        for(std::list<DataPathModule>::reverse_iterator rit=module_table[fd].rbegin();
-            rit!=module_table[fd].rend(); ++rit) {
-            len = module->data_in(buf, input_len, output_len); // output_len?
+        for(std::list<DataPathModule *>::reverse_iterator rit=module_table[fd]->rbegin();
+            rit!=module_table[fd]->rend(); ++rit) {
+            len = (*rit)->data_in(buf, (size_t *)&input_len, (size_t *)&output_len); // output_len?
         }
     }
     return len;
@@ -69,11 +70,13 @@ int Manager::recv(int fd, char *buf, int input_len, int output_len) {
 
 int Manager::close(int fd) {
     if (module_table.find(fd) != module_table.end()) {
-        std::list<DataPathModule>::iterator it=module_table[fd].begin();
-        while (it != module_table[fd].end()) {
-            delete it++;
+        std::list<DataPathModule *>::iterator it=module_table[fd]->begin();
+        while (it != module_table[fd]->end()) {
+            delete *it;
+            it++;
             //module_table[fd].erase(it++);
         }
         delete module_table[fd];
     }
+    return 0;
 }
