@@ -101,10 +101,14 @@ def main():
 #                                                        len(contextSet)))
     con = [int(round(numpy.mean(c))) for c in conflict_accum.values()]
     con2 = [int(round(numpy.mean(c))) for c in conflict_accum2.values()]
+    con3 = [sum([x > 0 for x in c]) for c in conflict_accum2.values()]
     print 'TEST ???: for a given context, how likely is a conflict across all apps: %d (%d, %d)' % (numpy.mean(con),numpy.min(con),numpy.max(con))
     print sorted(con)
     print 'TEST ???: for a given app, how likely is a conflict across all contexts: %d (%d, %d)' % (numpy.mean(con2),numpy.min(con2),numpy.max(con2))
     print sorted(con2)
+    print 'TEST ???: for a given app, how many contexts caused conflicts:'
+    print sorted(con3)
+    print len(contextSet)
 #    print per_policy_configuration_counts
 #    print num_intraconflicting_policy_sets
     sys.exit(-1)
