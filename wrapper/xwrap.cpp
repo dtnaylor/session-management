@@ -76,7 +76,7 @@ DECLARE(int, fprintf, FILE *stream, const char *format, ...);
 //****************************************************************************
 // set up logging parameters
 //
-int _log_trace = 1;
+int _log_trace = 0;
 int _log_warning = 0;
 int _log_info = 0;
 FILE *_log = NULL;
@@ -143,6 +143,7 @@ int socket(int domain, int type, int protocol)
 {
 	int fd;
 	TRACE();
+    printf("here\n");
 
 	fd = __real_socket(domain, type, protocol);
 

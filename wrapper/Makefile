@@ -15,7 +15,8 @@ $(LIB): xwrap.cpp ../manager/Manager.cpp
 	mkdir -p $(LIBDIR)
 	$(CC) $(CFLAGS) $<
 	$(CC) $(CFLAGS) ../manager/Manager.cpp
-	$(CC) -shared -o $@ xwrap.o ../manager/Manager.o $(LDFLAGS) 
+	$(CC) $(CFLAGS) ../modules/CompressionModule.cpp
+	$(CC) -shared -o $@ xwrap.o ./Manager.o ./CompressionModule.o -lz $(LDFLAGS) 
 
 clean:
 	-rm -f $(LIB)

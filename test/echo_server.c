@@ -69,6 +69,8 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
+    printf("okay running...\n");
+
     /* finally, loop waiting for input and then write it back */
     while (1)
     {
