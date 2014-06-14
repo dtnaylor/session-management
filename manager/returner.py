@@ -4,7 +4,7 @@ import sys
 import itertools
 from policy import *
 
-INTRACONFLICTS_ENABLED = True
+INTRACONFLICTS_ENABLED = False
 
 def logGoodiesConflicts(policies):
     # check that the two policies to consider are both the same module

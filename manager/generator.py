@@ -8,16 +8,17 @@ from policy import *
 random.seed()
 general_concerns = [Outcome(priority=c) for c in itertools.permutations((GeneralConcern.ENERGY, GeneralConcern.SPEED, GeneralConcern.COST))]
 
-EXPERIMENT = "USER_CONTROL"
-RANDOM_USER_POLICY = True
-NUMBER_OF_APP_POLICIES = 100
-NUMBER_OF_RANDOM_USER_POLICIES = 100
+EXPERIMENT = "CONFLICTS"
+RANDOM_USER_POLICY = False
+NUMBER_OF_APP_POLICIES = 1000
+NUMBER_OF_RANDOM_USER_POLICIES = 10
+ALLOW_NO_PREFERENCE_GENERATION = True
 
 def generateContextSet():
     if EXPERIMENT == "USER_CONTROL":
         return [{}]
 
-    if EXPERIMENT == "CONTEXT" or EXPERIMENT == "CONFLICTS":
+    if EXPERIMENT == "CONTEXT":
         context = {}
         context[ContextVar.NETWORK_TYPE] = [NetworkType.WIFI, NetworkType.LTE, NetworkType.WIFI_AND_LTE]
         context[ContextVar.LTE_DATA_USAGE] = [.1, .2, .3, .4, .5, .6, .7, .8, .9]
@@ -34,6 +35,24 @@ def generateContextSet():
             context.append(dict(zip(keys,c)))
         return context
 
+    if EXPERIMENT == "CONFLICTS":
+        context = {}
+        context[ContextVar.NETWORK_TYPE] = [NetworkType.WIFI, NetworkType.LTE, NetworkType.WIFI_AND_LTE]
+        context[ContextVar.LTE_DATA_USAGE] = [.1, .9]
+        context[ContextVar.BATTERY] = [.1, .9]
+        context[ContextVar.APPLICATION] = [Application.SPOTIFY, Application.SKYPE, Application.CHROME]
+        context[ContextVar.FLOW_TYPE] = [FlowType.MULTIMEDIA, FlowType.LOW_LATENCY, FlowType.BULK]
+        context[ContextVar.BW] = [100, 10000] #kbps
+        context[ContextVar.LATENCY] = [30, 1000] #ms
+
+        (keys,values) = zip(*context.items())
+        context_list = list(itertools.product(*values))
+        context = []
+        for c in context_list:
+            context.append(dict(zip(keys,c)))
+        return context
+
+
 def generateRandomOutcome():
     # pick a module
     modules = ModuleName.module_list()
@@ -41,11 +60,19 @@ def generateRandomOutcome():
     modules.remove('IPv4')
     module = random.choice(modules)
 
-    if random.random() > 0.5: # going to include module
-        return Outcome(include_module = module)
-    else: # exclude
-        return Outcome(exclude_module = module)
-        
+    r = random.random()
+    if ALLOW_NO_PREFERENCE_GENERATION:
+        if r <= 0.33: # going to include module
+            return Outcome(include_module = module)
+        elif r <= 0.66: # exclude
+            return Outcome(exclude_module = module)
+        else: # no preference
+            return None
+    else:
+        if r <= 0.5:
+            return Outcome(include_module = module)
+        else:
+            return Outcome(exclude_module = module)
 
 def generateNRandomPolicySets(role, n):
     policySets = []
@@ -85,6 +112,7 @@ def generateNRandomPolicySets(role, n):
         policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.LATENCY, lambda x, y: x > y, 100)], generateRandomOutcome()))
         policy.append(Policy(role, generic_flow, [ContextPredicate(ContextVar.LATENCY, lambda x, y: x < y, 100)], generateRandomOutcome()))
 
+        policy = [p for p in policy if p.outcome]
         policySets.append(policy)
     return policySets
         
