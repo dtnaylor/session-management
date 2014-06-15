@@ -23,20 +23,23 @@
 #include <list>
 #include "DataPathModule.h"
 #include "CompressionModule.h"
+#include "EncryptionModule.h"
 
 const char kCompression = 128;
+const char kEncryption = 64;
 
 class Manager {
  public:
-    int getInterface(int fd);
-    int getTransport(int fd);
-    int instantiateModules(int fd);
-    int instantiateModulesFromBitArray(int fd, char *bitarray, int len);
+    /* int getInterface(int fd); */
+    /* int getTransport(int fd); */
+    int instantiateModules(int fd, bool listener);
+    int instantiateModulesFromBitArray(int fd, char *bitarray, int len, bool initiator);
     char *getModulesAsBitArray(int fd);
     int getBitArrayLen();
-    int send(int fd, char *buf, int n);
-    int recv(int fd, char *buf, int input_len, int output_len);
+    int send(int fd, char *buf, size_t *n, size_t *buf_len);
+    int recv(int fd, char *buf, size_t *input_len, size_t *output_len);
     int close(int fd);
+    DataPathModule *getFront(int fd);
 
  private:
     char array[2];

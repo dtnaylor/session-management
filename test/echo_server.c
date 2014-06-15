@@ -69,8 +69,6 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    printf("okay running...\n");
-
     /* finally, loop waiting for input and then write it back */
     while (1)
     {
@@ -87,6 +85,7 @@ int main(int argc, char* argv[])
 
        while((readret = recv(client_sock, buf, BUF_SIZE, 0)) > 1)
        {
+           printf("client sent: %s\n", buf);
            if (send(client_sock, buf, readret, 0) != readret)
            {
                close_socket(client_sock);

@@ -37,6 +37,8 @@ void EncryptionModule::initialize(Preferences &prefs, ContextualInfo &info, bool
 	(void)info;
 	(void)initiator;
 
+    printf("intializing encryption\n");
+
 	// if we're the initiator, first step in handshake is to send client hello.
 	// if we're the server, first step is to wait for client hello
 	handshake_status_ = initiator ? kSendClientHello : kWaitForClientHello;
@@ -53,6 +55,7 @@ void EncryptionModule::initialize(Preferences &prefs, ContextualInfo &info, bool
 	EVP_CIPHER_CTX_init(en_);
 	de_ = (EVP_CIPHER_CTX*)malloc(sizeof(EVP_CIPHER_CTX));
 	EVP_CIPHER_CTX_init(de_);
+    printf("done initalize\n");
 }
 
 bool EncryptionModule::handshake_done() {
@@ -71,8 +74,7 @@ DataPathState EncryptionModule::get_resulting_data_path_state() {
 	return kObscured;
 }
 
-int EncryptionModule::data_in(void *buf, size_t *datalen, size_t *buflen) {
-
+int EncryptionModule::data_in(char *buf, size_t *datalen, size_t *buflen) {
 	if (!handshake_done_) {
 		return handshake_in(buf, datalen, buflen);
 	}
@@ -85,23 +87,20 @@ int EncryptionModule::data_in(void *buf, size_t *datalen, size_t *buflen) {
 		WARN("data_in can only process on AES block boundaries; waiting for more data\n");
 		return ERR_NEED_MORE_DATA;
 	}
-
-	/* alloc a new buffer to hold the plaintext */
-	void* plaintext = (void *)malloc(*buflen);
-
+	/* alloc a temp buffer to hold the ciphertext */
+	char* ciphertext = (char *)malloc(*buflen);
+    memcpy(ciphertext, buf, *datalen);
 	/* decrpyt the ciphertext */
 	int plaintext_len = aes_decrypt(de_,
-							(unsigned char*)plaintext, *buflen,
-							(unsigned char*)buf, *datalen);
-	
+							(unsigned char*)buf, *buflen,
+							(unsigned char*)ciphertext, *datalen);
 	if (plaintext_len <= 0) {
 		ERROR("ERROR decrypting message");
 		return ERR_GENERIC;
 	}
 	
-	/* free the original data buf and set buf to the plaintext */
-	free(buf);
-	buf = plaintext;
+	/* free the temp buffer */
+	free(ciphertext);
 
 	/* update sizes */
 	*datalen = plaintext_len;
@@ -109,28 +108,28 @@ int EncryptionModule::data_in(void *buf, size_t *datalen, size_t *buflen) {
 	return 0;
 }
 
-int EncryptionModule::data_out(void *buf, size_t *datalen, size_t *buflen) {
+int EncryptionModule::data_out(char *buf, size_t *datalen, size_t *buflen) {
 	
 	if (!handshake_done_) {
 		return handshake_out(buf, datalen, buflen);
 	}
 
 	/* alloc a new buffer to hold the ciphertext */
-	void *ciphertext = (void*)malloc(*buflen);
+    /* alloc a temp buffer to hold the plaintext */
+    char *plaintext = (char*)malloc(*buflen);
+    memcpy(plaintext, buf, *datalen);
 
 	/* encrypt data to send */
 	int ciphertext_len = aes_encrypt(en_, 
-							(unsigned char*)buf, *datalen,
-							(unsigned char*)ciphertext, *buflen);
-
+							(unsigned char*)plaintext, *datalen,
+							(unsigned char*)buf, *buflen);
 	if (ciphertext_len <= 0) {
 		ERROR("ERROR encrypting message");
 		return ERR_GENERIC;
 	}
 
-	/* free the original data buf and set buf to the ciphertext */
-	free(buf);
-	buf = ciphertext;
+	/* free the temporary buf */
+	free(plaintext);
 
 	/* update sizes */
 	*datalen = ciphertext_len;
@@ -147,24 +146,25 @@ int EncryptionModule::data_out(void *buf, size_t *datalen, size_t *buflen) {
 
 /* handshake */
 
-int EncryptionModule::handshake_in(void *buf, size_t *datalen, size_t *buflen) {
+int EncryptionModule::handshake_in(char *buf, size_t *datalen, size_t *buflen) {
+    (void)buflen;
 
 	/* pick up where we left off in the handshake */
 	switch(handshake_status_) {
 		case kWaitForClientHello: // server-side
 		{
 			/* make sure the data is a complete client hello */
-			if (strcmp("CLIENT HELLO", (char*)buf) != 0) {
+			if (strncmp("CLIENT HELLO", buf, 12) != 0) {
 				ERROR("ERROR: received message was not CLIENT HELLO\n");
 				return ERR_NEED_MORE_DATA;
 			} else {
 				// FIXME: inefficient!
-				int hello_len = strlen("CLIENT HELLO");
-				void* newbuf = (void*)malloc(*buflen);
-				memcpy(newbuf, buf+hello_len, *datalen-hello_len);
-				*datalen -= hello_len;
-				free(buf);
-				buf = newbuf;  // FIXME: need pointer to pointer
+				// int hello_len = strlen("CLIENT HELLO");
+				// char* newbuf = (char*)malloc(*buflen);
+				// memcpy(newbuf, buf+hello_len, *datalen-hello_len);
+				// *datalen -= hello_len;
+				// free(buf);
+				// buf = newbuf;  // FIXME: need pointer to pointer
 
 				handshake_status_ = kSendServerHello;
 				return 0;
@@ -180,31 +180,31 @@ int EncryptionModule::handshake_in(void *buf, size_t *datalen, size_t *buflen) {
 			// Continue receiving until we see "SERVER DONE"
 			
 			// FIXME: this assumes there's no handshake data after us!
-			if (*datalen < 11 || strcmp("SERVER DONE", (char*)(buf+*datalen-11)) != 0) {
+			if (*datalen < 11 || strcmp("SERVER DONE", (buf+*datalen-11)) != 0) {
 				ERROR("Did not receive complete SERVER DONE. Waiting for more data\n");
 				return ERR_NEED_MORE_DATA;
 			}
 
 			/* Parse public keys from SERVER HELLO */
 			int offset = strlen("SERVER HELLO");
-			char *keys = (char*)buf+offset;  // start of signed portion of message
+			char *keys = buf+offset;  // start of signed portion of message
 
-			uint32_t *keybufsizeptr = (uint32_t*)buf+offset;
+			uint32_t *keybufsizeptr = (uint32_t*)(buf+offset);
 			uint32_t keybufsize = *keybufsizeptr; // TODO: error checking here
 			offset += sizeof(uint32_t);
-			RSA *pubkey = deserialize_rsa_pub_key((char*)buf+offset, keybufsize);
+			RSA *pubkey = deserialize_rsa_pub_key(buf+offset, keybufsize);
 			offset += keybufsize;
 
-			uint32_t *tempkeybufsizeptr = (uint32_t*)buf+offset;
+			uint32_t *tempkeybufsizeptr = (uint32_t*)(buf+offset);
 			uint32_t tempkeybufsize = *tempkeybufsizeptr;
 			offset += sizeof(uint32_t);
-			session_pub_key_ = deserialize_rsa_pub_key((char*)buf+offset, tempkeybufsize);
+			session_pub_key_ = deserialize_rsa_pub_key(buf+offset, tempkeybufsize);
 			offset += tempkeybufsize;
 
-			uint32_t *siglenptr = (uint32_t*)buf+offset;
+			uint32_t *siglenptr = (uint32_t*)(buf+offset);
 			uint32_t siglen = *siglenptr;
 			offset += sizeof(uint32_t);
-			char* sig = (char*)buf+offset;
+			char* sig = buf+offset;
 			offset += siglen;
 			DBGF("Received keys:\n\tkeylen: %d\n\ttempkeylen: %d\n\tsiglen: %d", keybufsize, tempkeybufsize, siglen);
 
@@ -217,14 +217,13 @@ int EncryptionModule::handshake_in(void *buf, size_t *datalen, size_t *buflen) {
 				return ERR_GENERIC;
 			}
 
-				
 			// FIXME: inefficient!
-			void* newbuf = (void*)malloc(*buflen);
-			int used_len = offset + strlen("SERVER DONE");
-			memcpy(newbuf, buf+used_len, *datalen-used_len);
-			*datalen -= used_len;
-			free(buf);
-			buf = newbuf; // FIXME need pointer to pointer
+			// char* newbuf = (char*)malloc(*buflen);
+			// int used_len = offset + strlen("SERVER DONE");
+			// memcpy(newbuf, buf+used_len, *datalen-used_len);
+			// *datalen -= used_len;
+			// free(buf);
+			// buf = newbuf; // FIXME need pointer to pointer
 
 			handshake_status_ = kSendPreMasterSecret;
 			return 0;
@@ -274,11 +273,11 @@ int EncryptionModule::handshake_in(void *buf, size_t *datalen, size_t *buflen) {
 
 			/* remove our handshake data before next module gets buf */
 			// FIXME: inefficient!
-			void* newbuf = (void*)malloc(*buflen);
-			memcpy(newbuf, buf+expecting, *datalen-expecting);
-			*datalen -= expecting;
-			free(buf);
-			buf = newbuf; // FIXME need pointer to pointer
+			// char* newbuf = (char*)malloc(*buflen);
+			// memcpy(newbuf, buf+expecting, *datalen-expecting);
+			// *datalen -= expecting;
+			// free(buf);
+			// buf = newbuf; // FIXME need pointer to pointer
 
 
 			/* done with handshake */
@@ -289,12 +288,13 @@ int EncryptionModule::handshake_in(void *buf, size_t *datalen, size_t *buflen) {
 		}
 		default:
 			ERROR("Unknown handshake status\n");
+            printf("handshake status: %d\n", handshake_status_);
 			return ERR_GENERIC;
 	}
 
 }
 
-int EncryptionModule::handshake_out(void *buf, size_t *datalen, size_t *buflen) {
+int EncryptionModule::handshake_out(char *buf, size_t *datalen, size_t *buflen) {
 
 	/* pick up where we left off in the handshake.
 	   append the next portion of the handshake to buf, after whatever handshake
@@ -303,7 +303,7 @@ int EncryptionModule::handshake_out(void *buf, size_t *datalen, size_t *buflen) 
 		case kSendClientHello:  // client-side
 		{
 			/* Send CLIENT HELLO */
-			int hello_len = sprintf((char*)(buf+*datalen), "CLIENT HELLO");
+			int hello_len = sprintf((buf+*datalen), "CLIENT HELLO");
 			*datalen += hello_len;
 
 			handshake_status_ = kWaitForServerHello;
@@ -312,9 +312,8 @@ int EncryptionModule::handshake_out(void *buf, size_t *datalen, size_t *buflen) 
 		case kSendServerHello:  // server-side
 		{
 			/* Send SERVER HELLO */
-			int hello_len = sprintf((char*)(buf+*datalen), "SERVER HELLO");
+			int hello_len = sprintf((buf+*datalen), "SERVER HELLO");
 			*datalen += hello_len;
-
 
 			/* Send public key + temporary public key signed by long-term private key */
 			//
@@ -322,7 +321,9 @@ int EncryptionModule::handshake_out(void *buf, size_t *datalen, size_t *buflen) 
 			// keylen || key || tempkeylen || tempkey || siglen || sig
 			//
 			size_t offset = 0;
-			char* base = (char*)buf+*datalen;
+			char* base = buf+*datalen;
+
+            
 			int base_buflen = *buflen-*datalen;
 
 			uint32_t keybufsize = serialize_rsa_pub_key(master_keypair_, base+sizeof(uint32_t), base_buflen-offset-sizeof(uint32_t));
@@ -343,11 +344,11 @@ int EncryptionModule::handshake_out(void *buf, size_t *datalen, size_t *buflen) 
 
 			*datalen += offset;
 
-			DBGF("Sent keys (%d bytes)\n\tkeylen: %d\n\ttempkeylen: %d\n\tsiglen:%d", offset, keybufsize, tempkeybufsize, siglen);
+			DBGF("Sent keys (%lu bytes)\n\tkeylen: %d\n\ttempkeylen: %d\n\tsiglen:%d", offset, keybufsize, tempkeybufsize, siglen);
 
 
 			/* Send SERVER (hello) DONE */
-			int done_len = sprintf((char*)(buf+*datalen), "SERVER DONE");
+			int done_len = sprintf((buf+*datalen), "SERVER DONE");
 			*datalen += done_len;
 
 			handshake_status_ = kWaitForPreMasterSecret;
@@ -358,7 +359,7 @@ int EncryptionModule::handshake_out(void *buf, size_t *datalen, size_t *buflen) 
 		case kSendPreMasterSecret:  // client-side
 		{
 			// We can start adding data at base
-			char* base = (char*)buf+*datalen;
+			char* base = buf+*datalen;
 			int base_buflen = *buflen-*datalen;
 
 			/* Generate pre-master secret and send to server, encrypted with session_pub_key_ */
@@ -405,6 +406,7 @@ int EncryptionModule::handshake_out(void *buf, size_t *datalen, size_t *buflen) 
 		}
 		default:
 			ERROR("Unknown handshake status\n");
+            printf("handshake status: %d\n", handshake_status_);
 			return ERR_GENERIC;
 	}
 }
@@ -573,7 +575,7 @@ RSA *deserialize_rsa_pub_key(char *buf, size_t len) {
 * @return Pointer to buffer containing hash on success
 * 	NULL on failure
 */
-unsigned char *hash(char *msg, size_t msg_len) {
+unsigned char *myhash(char *msg, size_t msg_len) {
 	SHA_CTX ctx;
 	unsigned char *digest = (unsigned char*)malloc(SHA_DIGEST_LENGTH);
 	if (SHA1_Init(&ctx) == 0) {
@@ -613,7 +615,7 @@ uint32_t sign(RSA *keypair, char *msg, size_t msg_len, char *sigbuf, int sigbufl
 	}
 
 	/* first hash msg */
-	unsigned char *digest = hash(msg, msg_len);
+	unsigned char *digest = myhash(msg, msg_len);
 	if (digest == NULL) {
 		ERROR("ERROR: Unable to hash message");
 		return 0;
@@ -650,7 +652,7 @@ uint32_t sign(RSA *keypair, char *msg, size_t msg_len, char *sigbuf, int sigbufl
 int verify(RSA *keypair, char *msg, size_t msg_len, char *sig, size_t sig_len) {
 
 	/* first hash msg */
-	unsigned char *digest = hash(msg, msg_len);
+	unsigned char *digest = myhash(msg, msg_len);
 	if (digest == NULL) {
 		ERROR("ERROR: Unable to hash message");
 		return 0;

@@ -53,7 +53,7 @@ DataPathState CompressionModule::get_resulting_data_path_state() {
 	return kObscured;
 }
 
-int CompressionModule::data_in(void *buf, size_t *datalen, size_t *buflen) {
+int CompressionModule::data_in(char *buf, size_t *datalen, size_t *buflen) {
 	// TODO
 	(void)buf;
 	(void)datalen;
@@ -61,7 +61,7 @@ int CompressionModule::data_in(void *buf, size_t *datalen, size_t *buflen) {
 	return -1;
 }
 
-int CompressionModule::data_out(void *buf, size_t *datalen, size_t *buflen) {
+int CompressionModule::data_out(char *buf, size_t *datalen, size_t *buflen) {
 	// TODO
 	(void)buf;
 	(void)datalen;

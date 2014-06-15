@@ -40,11 +40,9 @@ enum HandshakeStatus {
 	kSendClientHello,
 	kWaitForServerHello,
 	kSendPreMasterSecret,
-
 	kWaitForClientHello,
 	kSendServerHello,
 	kWaitForPreMasterSecret,
-
 	kDone
 };
 
@@ -55,8 +53,8 @@ class EncryptionModule : public DataPathModule {
 		virtual bool ready();
 		virtual DataPathState get_required_data_path_state();
 		virtual DataPathState get_resulting_data_path_state();
-		virtual int data_in(void *buf, size_t *datalen, size_t *buflen);
-		virtual int data_out(void *buf, size_t *datalen, size_t *buflen);
+		virtual int data_in(char *buf, size_t *datalen, size_t *buflen);
+		virtual int data_out(char *buf, size_t *datalen, size_t *buflen);
 
 		EncryptionModule();
 		~EncryptionModule();
@@ -66,8 +64,8 @@ class EncryptionModule : public DataPathModule {
 		bool ready_;
 
 		/* handshake helper methods */
-		int handshake_in(void *buf, size_t *datalen, size_t *buflen);
-		int handshake_out(void *buf, size_t *datalen, size_t *buflen);
+		int handshake_in(char *buf, size_t *datalen, size_t *buflen);
+		int handshake_out(char *buf, size_t *datalen, size_t *buflen);
 
 		/* keep track of handshake progress */
 		HandshakeStatus handshake_status_;

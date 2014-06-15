@@ -101,7 +101,7 @@ class DataPathModule {
 		*		more data.
 		*
 		*/
-		virtual int data_in(void *buf, size_t *datalen, size_t *buflen) = 0;
+		virtual int data_in(char *buf, size_t *datalen, size_t *buflen) = 0;
 
 		/**
 		* @brief Process outbound data.
@@ -116,7 +116,7 @@ class DataPathModule {
 		*
 		* @return 0 on success; ERR_* on failure
 		*/
-		virtual int data_out(void *buf, size_t *datalen, size_t *buflen) = 0;
+		virtual int data_out(char *buf, size_t *datalen, size_t *buflen) = 0;
 
 };
 

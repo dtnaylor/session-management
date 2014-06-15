@@ -26,8 +26,8 @@ class CompressionModule : public DataPathModule {
 		virtual bool ready();
 		virtual DataPathState get_required_data_path_state();
 		virtual DataPathState get_resulting_data_path_state();
-		virtual int data_in(void *buf, size_t *datalen, size_t *buflen);
-		virtual int data_out(void *buf, size_t *datalen, size_t *buflen);
+		virtual int data_in(char *buf, size_t *datalen, size_t *buflen);
+		virtual int data_out(char *buf, size_t *datalen, size_t *buflen);
 
 	protected:
 		int compress(unsigned char *in, size_t in_len, unsigned char *out, size_t out_len);
