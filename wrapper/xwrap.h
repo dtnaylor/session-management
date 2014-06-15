@@ -67,6 +67,8 @@ DECLARE(int, bind, int fd, const struct sockaddr *addr, socklen_t len);
 DECLARE(int, connect, int fd, const struct sockaddr *addr, socklen_t len);
 DECLARE(ssize_t, send, int fd, const void *buf, size_t n, int flags);
 DECLARE(ssize_t, recv, int fd, void *buf, size_t n, int flags);
+DECLARE(ssize_t, write, int fd, const void *buf, size_t count);
+DECLARE(ssize_t, read, int fd, void *buf, size_t count);
 DECLARE(ssize_t, sendto, int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t addr_len);
 DECLARE(ssize_t, recvfrom, int fd, void *buf, size_t n, int flags, struct sockaddr *addr, socklen_t *addr_len);
 DECLARE(int, listen, int fd, int n);
@@ -119,6 +121,8 @@ void __attribute__ ((constructor)) xwrap_init(void)
 	GET_FCN(connect);
 	GET_FCN(send);
 	GET_FCN(recv);
+    GET_FCN(write);
+    GET_FCN(read);
 	GET_FCN(sendto);
 	GET_FCN(recvfrom);
 	GET_FCN(listen);

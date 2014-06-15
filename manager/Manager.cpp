@@ -92,3 +92,7 @@ int Manager::close(int fd) {
 DataPathModule *Manager::getFront(int fd) {
     return module_table[fd]->front();
 }
+
+bool Manager::known(int fd) {
+    return module_table.find(fd) != module_table.end();
+}

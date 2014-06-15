@@ -37,7 +37,7 @@ void EncryptionModule::initialize(Preferences &prefs, ContextualInfo &info, bool
 	(void)info;
 	(void)initiator;
 
-    printf("intializing encryption\n");
+    //printf("intializing encryption\n");
 
 	// if we're the initiator, first step in handshake is to send client hello.
 	// if we're the server, first step is to wait for client hello
@@ -55,7 +55,7 @@ void EncryptionModule::initialize(Preferences &prefs, ContextualInfo &info, bool
 	EVP_CIPHER_CTX_init(en_);
 	de_ = (EVP_CIPHER_CTX*)malloc(sizeof(EVP_CIPHER_CTX));
 	EVP_CIPHER_CTX_init(de_);
-    printf("done initalize\n");
+    //printf("done initalize\n");
 }
 
 bool EncryptionModule::handshake_done() {
@@ -254,7 +254,7 @@ int EncryptionModule::handshake_in(char *buf, size_t *datalen, size_t *buflen) {
 			}
 			if (VERBOSITY >= V_DEBUG) {
 				DBG("Pre_Master Secret:");
-				print_bytes(pms, PRE_MASTER_SECRET_LENGTH);
+				//print_bytes(pms, PRE_MASTER_SECRET_LENGTH);
 			}
 
 
@@ -288,7 +288,7 @@ int EncryptionModule::handshake_in(char *buf, size_t *datalen, size_t *buflen) {
 		}
 		default:
 			ERROR("Unknown handshake status\n");
-            printf("handshake status: %d\n", handshake_status_);
+            //printf("handshake status: %d\n", handshake_status_);
 			return ERR_GENERIC;
 	}
 
@@ -370,7 +370,7 @@ int EncryptionModule::handshake_out(char *buf, size_t *datalen, size_t *buflen) 
     		}
 			if (VERBOSITY >= V_DEBUG) {
 				DBG("Pre-Master Secret:");
-				print_bytes(pms, PRE_MASTER_SECRET_LENGTH);
+				//print_bytes(pms, PRE_MASTER_SECRET_LENGTH);
 			}
 
 			int ciphertext_len;
@@ -406,7 +406,7 @@ int EncryptionModule::handshake_out(char *buf, size_t *datalen, size_t *buflen) 
 		}
 		default:
 			ERROR("Unknown handshake status\n");
-            printf("handshake status: %d\n", handshake_status_);
+            //printf("handshake status: %d\n", handshake_status_);
 			return ERR_GENERIC;
 	}
 }

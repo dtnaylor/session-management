@@ -35,8 +35,15 @@ int connect(int fd, const struct sockaddr *addr, socklen_t len)
     // probably want to do something here to force using a 
     // specific interface + transport
 	rc = __real_connect(fd, addr, len);
+    if(rc == -1) {
+        __real_fprintf(_log, "errno: %s\n", strerror(errno));
+        rc = 0;
+        //return rc; 
+    }
+    __real_fprintf(_log, "connects fd %d, rc %d\n", fd, rc);
 
-    printf("sending module array\n");
+
+    //printf("sending module array\n");
     // send a bit array of which modules you wish to use
     // __real_send(fd, session_manager.getModulesAsBitArray(fd),
     //             session_manager.getBitArrayLen(), 0);
@@ -50,14 +57,20 @@ int connect(int fd, const struct sockaddr *addr, socklen_t len)
     EncryptionModule *enc = (EncryptionModule *)session_manager.getFront(fd);
     while(!enc->handshake_done()) {
         enc->data_out(buf, &used, &total);
-        __real_send(fd, buf, used, 0);
+        total = __real_send(fd, buf, used, 0);
+        __real_fprintf(_log, "wanted to send %lu, only sent %lu\n", used, total);
         if(enc->handshake_done()) break;
-        used = __real_recv(fd, buf, total, 0);
+        total = 4096;
+        ssize_t u;
+        while((u = __real_recv(fd, buf, total, 0)) <= 0) {}
+        used = u;
+        __real_fprintf(_log, "recv %lu\n", u);
         enc->data_in(buf, &used, &total);
+        total = 4096;
         used = 0;
     }
     free(buf);
-    printf("completely done with handshake\n");
+    __real_fprintf(_log, "completely done with handshake. rc = %d\n", rc);
 
 	return rc;
 }
@@ -78,6 +91,7 @@ int accept(int fd, struct sockaddr *addr, socklen_t *addr_len)
 	TRACE();
 
 	new_fd = __real_accept(fd, addr, addr_len);
+    __real_fprintf(_log, "accept's fd: %d\n", new_fd);
 
     if (session_manager.instantiateModules(new_fd, false)) {
         return -1;
@@ -87,17 +101,21 @@ int accept(int fd, struct sockaddr *addr, socklen_t *addr_len)
     size_t used = 0;
     char *buf = (char *)malloc(total);
     EncryptionModule *enc = (EncryptionModule *)session_manager.getFront(new_fd);
-    printf("starting handshake\n");
+    __real_fprintf(_log, "starting handshake\n");
     while(!enc->handshake_done()) {
+        total = 4096;
         used = __real_recv(new_fd, buf, total, 0);
+        __real_fprintf(_log, "recv %lu bytes\n", used);
         enc->data_in(buf, &used, &total);
         if(enc->handshake_done()) break;
+        total = 4096;
         used = 0;
         enc->data_out(buf, &used, &total);
-        __real_send(new_fd, buf, used, 0);
+        total = __real_send(new_fd, buf, used, 0);
+        __real_fprintf(_log, "wanted to send %lu, only sent %lu\n", used, total);
     }
     free(buf);
-    printf("completely done with handshake\n");
+    __real_fprintf(_log, "completely done with handshake\n");
 
     // char lenc[1];
     // if (__real_recv(fd, lenc, 1, 0) == -1) {
@@ -139,6 +157,31 @@ ssize_t send(int fd, const void *buf, size_t n, int flags)
 	return original_size;
 }
 
+ssize_t write(int fd, const void *buf, size_t count)
+{
+    if(session_manager.known(fd)) {
+        int rc;
+        size_t original_size = count;
+        TRACE();
+
+        size_t buflen = 4096;
+        char *new_buf = (char*)malloc(buflen);
+        memcpy(new_buf, buf, count);
+        if(session_manager.send(fd, new_buf, &count, &buflen) <= 0) {
+            return -1;
+        }
+        if(__real_write(fd, (char *)&count, sizeof(size_t)) < 0) {return -1;}
+        rc = __real_write(fd, new_buf, count);
+        free(new_buf);
+        __real_fprintf(_log, "want to write (unenc) %d, (enc) %d, sent %d\n", original_size, count, rc);
+
+        if(rc <= 0) return rc; // HACK!!!
+        return original_size;
+    } else {
+        return __real_write(fd, buf, count);
+    }
+}
+
 ssize_t recv(int fd, void *buf, size_t n, int flags)
 {
 	size_t rc;
@@ -157,6 +200,42 @@ ssize_t recv(int fd, void *buf, size_t n, int flags)
     ssize_t rc2 = (ssize_t)rc;
     if(rc > n) return n; // HACK!!!
 	return rc2;
+}
+
+ssize_t read(int fd, void *buf, size_t count) 
+{
+    if(session_manager.known(fd)) {
+        ssize_t rc;
+        TRACE();
+
+        size_t buflen = 4096;
+        char *new_buf = (char*)malloc(buflen);
+        size_t incoming_size;
+        if(__real_read(fd, new_buf, sizeof(size_t)) < 0) {return -1;}
+        memcpy(&incoming_size, new_buf, sizeof(size_t));
+        int accum = 0;
+        while(accum < (int)incoming_size) {
+            rc = __real_read(fd, new_buf+accum, incoming_size - accum);
+            if(rc == -1) {
+                __real_fprintf(_log,"errno: %s\n", strerror(errno));
+            } else {
+                accum += rc;
+            }
+        }
+        __real_fprintf(_log, "read (enc) %d\n", rc);
+        if (rc > 0) {
+            // Need to be careful that we don't exceed buflen
+            session_manager.recv(fd, new_buf, (size_t *)&rc, &buflen);
+        }
+        memcpy(buf, new_buf, count);
+        free(new_buf);
+
+        if(rc > 0 && (size_t)rc > count) return count; // HACK!!!
+        __real_fprintf(_log, "read (unenc) %d\n", rc);
+        return rc;
+    } else {
+        return __real_read(fd, buf, count);
+    }
 }
 
 ssize_t sendto(int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t addr_len)
@@ -188,7 +267,8 @@ int listen(int fd, int n)
 int close(int fd)
 {
 	int rc;
-	TRACE();
+    if(session_manager.known(fd))
+        TRACE();
 
 	rc = __real_close(fd);
     session_manager.close(fd);

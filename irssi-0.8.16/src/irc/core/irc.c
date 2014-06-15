@@ -109,9 +109,10 @@ void irc_send_cmd(IRC_SERVER_REC *server, const char *cmd)
 	int send_now;
 
         g_get_current_time(&now);
-	send_now = g_timeval_cmp(&now, &server->wait_cmd) >= 0 &&
-		(server->cmdcount < server->max_cmds_at_once ||
-		 server->cmd_queue_speed <= 0);
+        send_now = g_timeval_cmp(&now, &server->wait_cmd) >= 0;
+/* && */
+/* 		(server->cmdcount < server->max_cmds_at_once || */
+/* 		 server->cmd_queue_speed <= 0); */
 
         irc_send_cmd_full(server, cmd, send_now, FALSE, FALSE);
 }

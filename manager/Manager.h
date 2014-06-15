@@ -40,6 +40,7 @@ class Manager {
     int recv(int fd, char *buf, size_t *input_len, size_t *output_len);
     int close(int fd);
     DataPathModule *getFront(int fd);
+    bool known(int fd);
 
  private:
     char array[2];
