@@ -131,6 +131,10 @@ void __attribute__ ((constructor)) xwrap_init(void)
 
 	GET_FCN(fprintf);
 }
+
+
+//char **session_buffers;
+
 #endif // XIA_PRELOAD
 
 

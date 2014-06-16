@@ -196,13 +196,13 @@ ssize_t write(int fd, const void *buf, size_t count)
         size_t buflen = 4096;
         char *new_buf = (char*)malloc(buflen);
         memcpy(new_buf, buf, count);
-        if(session_manager.send(fd, new_buf, &count, &buflen) <= 0) {
+        if(session_manager.send(fd, (char*)new_buf, &count, &buflen) <= 0) {
             return -1;
         }
         if(__real_write(fd, (char *)&count, sizeof(size_t)) < 0) {return -1;}
         rc = __real_write(fd, new_buf, count);
         free(new_buf);
-        __real_fprintf(_log, "want to write (unenc) %d, (enc) %d, sent %d\n", original_size, count, rc);
+        //__real_fprintf(_log, "want to write (unenc) %d, (enc) %d, sent %d\n", original_size, count, rc);
 
         if(rc <= 0) return rc; // HACK!!!
         return original_size;
@@ -237,31 +237,32 @@ ssize_t read(int fd, void *buf, size_t count)
         ssize_t rc;
         TRACE();
 
-        size_t buflen = 4096;
-        char *new_buf = (char*)malloc(buflen);
+        size_t buflen = count;
         size_t incoming_size;
-        if(__real_read(fd, new_buf, sizeof(size_t)) < 0) {return -1;}
-        memcpy(&incoming_size, new_buf, sizeof(size_t));
-        int accum = 0;
-        while(accum < (int)incoming_size) {
-            rc = __real_read(fd, new_buf+accum, incoming_size - accum);
-            if(rc == -1) {
-                __real_fprintf(_log,"errno: %s\n", strerror(errno));
-            } else {
-                accum += rc;
+        int total = 0;
+        size_t accum;
+        while(__real_recv(fd, &incoming_size, sizeof(size_t), MSG_PEEK) >= 0) {
+            if (incoming_size+total > count) { break; }
+            if (__real_read(fd, &incoming_size, sizeof(size_t)) < 0) { break; }//b/c of peek
+            accum = 0;
+            while(accum < incoming_size) {
+                rc = __real_read(fd, (char*)buf+total+accum, incoming_size - accum);
+                if(rc > 0) {
+                    accum += rc;
+                }
             }
+            //__real_fprintf(_log, "before sm, accum = %d\n", accum);
+            session_manager.recv(fd, (char*)buf+total, &incoming_size, &buflen);
+            //__real_fprintf(_log, "after sm\n");
+            total += incoming_size;
+            buflen -= incoming_size;
+            break;
         }
-        __real_fprintf(_log, "read (enc) %d\n", rc);
-        if (rc > 0) {
-            // Need to be careful that we don't exceed buflen
-            session_manager.recv(fd, new_buf, (size_t *)&rc, &buflen);
-        }
-        memcpy(buf, new_buf, count);
-        free(new_buf);
+        //__real_fprintf(_log, "out of big while\n");
+        if (total == 0) { return -1; }
 
-        if(rc > 0 && (size_t)rc > count) return count; // HACK!!!
-        __real_fprintf(_log, "read (unenc) %d\n", rc);
-        return rc;
+        //__real_fprintf(_log, "read (unenc) %d\n", rc);
+        return total;
     } else {
         return __real_read(fd, buf, count);
     }
