@@ -150,7 +150,7 @@
 #define WRITEBUFFER_FLUSH_LEN 4096
 
 /** Maximum size of the write buffer of a connection in bytes. */
-#define WRITEBUFFER_MAX_LEN 32768
+#define WRITEBUFFER_MAX_LEN 67108864
 
 /** Maximum size of the write buffer of a server link connection in bytes. */
 #define WRITEBUFFER_SLINK_LEN 65536

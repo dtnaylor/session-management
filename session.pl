@@ -27,7 +27,7 @@ sub question($server, $msg, $nick, $target) {
 	if (/^8-ball:.+\?$/i) {
 		my $answer = "Merb";
         $a = 1;
-        while( $a < 100 ) {
+        while( $a < 500 ) {
             $server->command('msg '.$target.' '.$nick.'8-ball: '.$a.$answer);
             $a = $a + 1;
         }

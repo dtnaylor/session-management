@@ -1429,7 +1429,7 @@ configure:5968: checking for arc4random
 configure:5968: gcc -std=gnu99 -o conftest -g -O2 -pipe -W -Wall -Wpointer-arith -Wstrict-prototypes -fstack-protector -DSYSCONFDIR='"$(sysconfdir)"' -DDOCDIR='"$(docdir)"'   conftest.c  >&5
 conftest.c:95:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
 conftest.c:104:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
-/tmp/cc3o8cVr.o: In function `main':
+/tmp/ccRYmttC.o: In function `main':
 /home/xia-user/session/session-management/ngircd-21.1/conftest.c:106: undefined reference to `arc4random'
 collect2: ld returned 1 exit status
 configure:5968: $? = 1
@@ -1548,7 +1548,7 @@ configure:5968: checking for arc4random_stir
 configure:5968: gcc -std=gnu99 -o conftest -g -O2 -pipe -W -Wall -Wpointer-arith -Wstrict-prototypes -fstack-protector -DSYSCONFDIR='"$(sysconfdir)"' -DDOCDIR='"$(docdir)"'   conftest.c  >&5
 conftest.c:95:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
 conftest.c:104:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
-/tmp/ccy23syl.o: In function `main':
+/tmp/ccF2WwfF.o: In function `main':
 /home/xia-user/session/session-management/ngircd-21.1/conftest.c:106: undefined reference to `arc4random_stir'
 collect2: ld returned 1 exit status
 configure:5968: $? = 1
@@ -1725,7 +1725,7 @@ configure:5968: checking for strlcpy
 configure:5968: gcc -std=gnu99 -o conftest -g -O2 -pipe -W -Wall -Wpointer-arith -Wstrict-prototypes -fstack-protector -DSYSCONFDIR='"$(sysconfdir)"' -DDOCDIR='"$(docdir)"'   conftest.c  >&5
 conftest.c:104:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
 conftest.c:113:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
-/tmp/ccgmwQPK.o: In function `main':
+/tmp/cciQRM8V.o: In function `main':
 /home/xia-user/session/session-management/ngircd-21.1/conftest.c:115: undefined reference to `strlcpy'
 collect2: ld returned 1 exit status
 configure:5968: $? = 1
@@ -1853,7 +1853,7 @@ configure:5968: checking for strlcat
 configure:5968: gcc -std=gnu99 -o conftest -g -O2 -pipe -W -Wall -Wpointer-arith -Wstrict-prototypes -fstack-protector -DSYSCONFDIR='"$(sysconfdir)"' -DDOCDIR='"$(docdir)"'   conftest.c  >&5
 conftest.c:104:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
 conftest.c:113:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
-/tmp/ccg1rCcO.o: In function `main':
+/tmp/ccy8PngY.o: In function `main':
 /home/xia-user/session/session-management/ngircd-21.1/conftest.c:115: undefined reference to `strlcat'
 collect2: ld returned 1 exit status
 configure:5968: $? = 1
@@ -2321,7 +2321,7 @@ configure:6619: checking for kqueue
 configure:6619: gcc -std=gnu99 -o conftest -g -O2 -pipe -W -Wall -Wpointer-arith -Wstrict-prototypes -fstack-protector -DSYSCONFDIR='"$(sysconfdir)"' -DDOCDIR='"$(docdir)"'   conftest.c -lz  >&5
 conftest.c:119:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
 conftest.c:128:1: warning: function declaration isn't a prototype [-Wstrict-prototypes]
-/tmp/ccWKxLRs.o: In function `main':
+/tmp/ccwh1xID.o: In function `main':
 /home/xia-user/session/session-management/ngircd-21.1/conftest.c:130: undefined reference to `kqueue'
 collect2: ld returned 1 exit status
 configure:6619: $? = 1
@@ -2493,6 +2493,7 @@ config.status:964: creating src/portab/Makefile
 config.status:964: creating src/testsuite/Makefile
 config.status:964: creating src/tool/Makefile
 config.status:964: creating src/config.h
+config.status:1144: src/config.h is unchanged
 config.status:1192: executing depfiles commands
 
 ## ---------------- ##

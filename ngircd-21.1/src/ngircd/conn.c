@@ -1558,17 +1558,17 @@ New_Connection(int Sock, UNUSED bool IsSSL)
 	}
 
 	/* Check IP-based connection limit */
-	cnt = Count_Connections(&new_addr);
-	if ((Conf_MaxConnectionsIP > 0) && (cnt >= Conf_MaxConnectionsIP)) {
-		/* Access denied, too many connections from this IP address! */
-		Log(LOG_ERR,
-		    "Refused connection from %s: too may connections (%ld) from this IP address!",
-		    ip_str, cnt);
-		Simple_Message(new_sock,
-			       "ERROR :Connection refused, too many connections from your IP address");
-		close(new_sock);
-		return -1;
-	}
+	cnt = Count_Connections(&new_addr); 
+	/* if ((Conf_MaxConnectionsIP > 0) && (cnt >= Conf_MaxConnectionsIP)) { */
+	/* 	/\* Access denied, too many connections from this IP address! *\/ */
+	/* 	Log(LOG_ERR, */
+	/* 	    "Refused connection from %s: too may connections (%ld) from this IP address!", */
+	/* 	    ip_str, cnt); */
+	/* 	Simple_Message(new_sock, */
+	/* 		       "ERROR :Connection refused, too many connections from your IP address"); */
+	/* 	close(new_sock); */
+	/* 	return -1; */
+	/* } */
 
 	if (new_sock >= Pool_Size) {
 		if (!array_alloc(&My_ConnArray, sizeof(CONNECTION),
@@ -2047,13 +2047,13 @@ Check_Connections(void)
 			 * disconnect the client after "a short time" if it's
 			 * still not registered. */
 
-			if (My_Connections[i].lastdata <
-			    time(NULL) - Conf_PongTimeout) {
-				LogDebug
-				    ("Unregistered connection %d timed out ...",
-				     i);
-				Conn_Close(i, NULL, "Timeout", false);
-			}
+			/* if (My_Connections[i].lastdata < */
+			/*     time(NULL) - Conf_PongTimeout) { */
+			/* 	LogDebug */
+			/* 	    ("Unregistered connection %d timed out ...", */
+			/* 	     i); */
+			/* 	Conn_Close(i, NULL, "Timeout", false); */
+			/* } */
 		}
 	}
 } /* Check_Connections */

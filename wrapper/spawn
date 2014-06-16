@@ -1,0 +1,12 @@
+#!/usr/bin/python
+
+from subprocess import Popen
+import subprocess, time
+
+dn = open('/dev/null', 'w')
+for i in xrange(4): 
+    Popen(['/home/xia-user/session/session-management/wrapper/xwrap', 'irssi'], stdout=dn, stderr=subprocess.STDOUT)
+    time.sleep(1)
+while(1):
+    pass
+

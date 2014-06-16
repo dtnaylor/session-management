@@ -16,7 +16,7 @@ int Manager::instantiateModules(int fd, bool listener) {
     modules[0] = kEncryption;
     int modules_len = 1;
 
-    printf("instantiating modules\n");
+    //printf("instantiating modules\n");
 
     return instantiateModulesFromBitArray(fd, modules, modules_len, listener);
 }
